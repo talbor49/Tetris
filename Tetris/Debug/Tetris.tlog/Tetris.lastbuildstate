@@ -1,2 +1,6 @@
 #TargetFrameworkVersion=v4.0:PlatformToolSet=v120:EnableManagedIncrementalBuild=false:VCToolArchitecture=Native32Bit
+<<<<<<< HEAD
 Debug|Win32|C:\Users\Tal\Google Drive\Codes\Projects\Tetris\|
+=======
+Debug|Win32|C:\Users\Tal\documents\visual studio 2013\Projects\Tetris\|
+>>>>>>> 047c05e2b94df5572182a900e291b4f8fd6acb44

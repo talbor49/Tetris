@@ -109,7 +109,11 @@ Todo list:
 		HChangeThemeMask HBITMAP ?
  
  
+<<<<<<< HEAD
 		theme DWORD WHITE_THEME
+=======
+		theme DWORD BLACK_THEME
+>>>>>>> 047c05e2b94df5572182a900e291b4f8fd6acb44
 		AnimateHWnd HWND ?
 		offsetinstring DWORD 0
 		score DWORD 0
@@ -3019,7 +3023,10 @@ newgame:
 		invoke GenerateRandomBlocksToArray
 		mov startscreen, 0
 		mov youlosestate, 0
+<<<<<<< HEAD
 		mov optionscreenstate, 0
+=======
+>>>>>>> 047c05e2b94df5572182a900e291b4f8fd6acb44
 		mov score, 0
 		mov FramesPassedSinceLastArrowClick, 0
 		mov FramesPassedSinceLastEnterClick, 0
@@ -3748,8 +3755,13 @@ blacktheme:
 		invoke DrawGrid, hdcMem
 		invoke DrawNext2Blocks
 		invoke DrawSideBarGrid, hdcMem, 400, 300
+<<<<<<< HEAD
 		invoke DrawImage_WithMask, hdcMem, HScore, HScoreMask, 400, 0
 		invoke DrawNumber, hdcMem, score, 400,56
+=======
+		;invoke DrawImage_WithMask, hdcMem, HScore, HScoreMask, 400, 0
+		;invoke DrawNumber, hdcMem, score, 400,56
+>>>>>>> 047c05e2b94df5572182a900e291b4f8fd6acb44
 		invoke DrawGridLines, hdcMem
  
                                                            

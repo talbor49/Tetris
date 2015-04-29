@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿Build started 4/30/2015 12:17:32 AM.
      1>Project "C:\Users\Tal\Google Drive\Codes\Projects\Tetris\Tetris\Tetris.vcxproj" on node 2 (Build target(s)).
      1>_MASM:
@@ -25,3 +26,14 @@
 Build succeeded.
 
 Time Elapsed 00:00:01.00
+=======
+﻿Build started 4/15/2015 11:40:13 PM.
+     1>Project "C:\Users\Tal\documents\visual studio 2013\Projects\Tetris\Tetris\Tetris.vcxproj" on node 2 (Build target(s)).
+     1>Link:
+         Tetris.vcxproj -> C:\Users\Tal\documents\visual studio 2013\Projects\Tetris\Debug\Tetris.exe
+     1>Done Building Project "C:\Users\Tal\documents\visual studio 2013\Projects\Tetris\Tetris\Tetris.vcxproj" (Build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:02.06
+>>>>>>> 047c05e2b94df5572182a900e291b4f8fd6acb44
