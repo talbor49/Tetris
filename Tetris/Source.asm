@@ -58,13 +58,13 @@ Todo list:
 		WHITE_THEME equ 0
 		TM_UPDATE equ 1337
 		TM_GET_INPUT_FROM_KEYBOARD equ 1336
-
+		INITIAL_UPDATE_TIMER equ 750
  
 .data
 		marginBetweenButtons DWORD ?
-		WINDOW_WIDTH DWORD 400
-		REAL_WINDOW_WIDTH DWORD 700
-		WINDOW_HEIGHT DWORD 800
+		WindowWidth DWORD 400
+		RealWindowWidth DWORD 700
+		WindowHeight DWORD 800
 		eaxbackup DWORD ?
 		ANIMATE_CLASSA  db "SysAnimate32",0
 		HPauseScreen HBITMAP ?
@@ -135,16 +135,7 @@ Todo list:
 		FullLine db ?
 		CurrentColor db 1
 		youlosestate db 0
-		avipath db "foldermove.avi",0
-		FramesPassedSinceLastDownClick DWORD 10
-		FramesPassedSinceLastMoveDown DWORD 0
-		FramesPassedSinceLastClick DWORD 10
-		FramesPassedSinceLastFlip DWORD 10
-		FramesPassedSinceLastPause DWORD 10
-		framesPassedSinceLastSendMessage DWORD 0
-		FramesPassedSinceLastEnterClick DWORD 100
-		FramesPassedSinceLastThemeChange DWORD 0
-		FramesPassedSinceLastChangeBlock DWORD 0
+		avipath db "foldermove.avi",0		
 		backupecx DWORD ?
 		next2blocks db 1000 dup(0ffh)
 		grid DB 100000 dup(00FFh)
@@ -265,7 +256,7 @@ ReadGrid PROC, XIndex:DWORD, YIndex:DWORD
 		;Returns grid[XIndex][YIndex]
 		mov ebx, offset grid
  
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE,0
+		invoke TalDiv, WindowWidth, BLOCK_SIZE,0
 		mov edx, eax
  
 		mov eax, YIndex
@@ -298,12 +289,12 @@ local brush:HBRUSH
 		invoke SelectObject, hdc, brush
 		mov ebx, 0
 		mov edx, 0
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, 0
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, 0
 		mov ecx, eax
 loop00:
 		mov backupecx, ecx
  
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, 0
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, 0
 		mov ecx, eax
  
 		mov ebx, 0
@@ -355,7 +346,7 @@ local brush:HBRUSH
 		invoke GetStockObject, WHITE_BRUSH
 		mov brush, eax
 		invoke SelectObject, hdc, brush
-		invoke BUILDRECT, 400, 0, WINDOW_HEIGHT, 300, hdc, brush
+		invoke BUILDRECT, 400, 0, WindowHeight, 300, hdc, brush
 		ret
 myOwnClearSideBarGrid ENDP
  
@@ -418,11 +409,11 @@ local brush:HBRUSH
  
 		mov ebx, 0
 		mov edx, 0
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE,0
+		invoke TalDiv, WindowHeight, BLOCK_SIZE,0
 		mov ecx, eax
 loop00:
 		mov backupecx, ecx
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE,0
+		invoke TalDiv, WindowWidth, BLOCK_SIZE,0
 		mov ecx, eax
 		mov ebx, 0
 loop01:
@@ -467,7 +458,7 @@ local brush:HBRUSH
 		mov ebx, 0
 		mov edx, 0
 		mov ecx, BLOCK_SIZE
-		mov eax, WINDOW_HEIGHT
+		mov eax, WindowHeight
 		idiv ecx
 		mov ecx, eax
 loop00:
@@ -526,7 +517,7 @@ SetGrid PROC, XIndex:DWORD, YIndex:DWORD, data:BYTE
 		;Puts data into grid[XIndex][YIndex]
 		mov ebx, offset grid
 		xor edx, edx
-		mov eax, WINDOW_WIDTH
+		mov eax, WindowWidth
 		mov ecx, BLOCK_SIZE
 		idiv ecx
 		mov edx, eax
@@ -1594,14 +1585,14 @@ ClearFullLines PROC
 		mov ebx, 0
 		mov edx, 0
 		xor eax, eax
-		mov eax, WINDOW_HEIGHT
+		mov eax, WindowHeight
 		mov ecx, BLOCK_SIZE
 		idiv ecx
 		mov ecx, eax
 outerloop:
 		mov backupecx, ecx
 		mov ebx, 0
-		invoke TalDiv, WINDOW_WIDTH,BLOCK_SIZE,0
+		invoke TalDiv, WindowWidth,BLOCK_SIZE,0
 		mov ecx, eax
 		mov edxbackup, edx
 innerloop:
@@ -1617,7 +1608,7 @@ innerloop:
 yesclearline:
 		add score, SCORE_BONUS
 		mov ebx, 0
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, 0
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, 0
 		mov ecx, eax
 clearblocks:
 		mov anotherecxbackup, ecx
@@ -1679,12 +1670,12 @@ block0:
 		je block03
  
 block00:
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -4
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -4
 		cmp y, eax
 		jge returnfalse
 		cmp x, 0
 		jl returnfalse
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, 0
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, 0
 		cmp x, eax
 		jge returnfalse
 		mov ebx, x
@@ -1704,10 +1695,10 @@ loop00:
 block01:
 		cmp x, 0
 		jl returnfalse
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -1
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -1
 		cmp y, eax
 		jge returnfalse
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, -4
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, -4
 		cmp x, eax
 		jg returnfalse
 		mov ebx, x
@@ -1727,10 +1718,10 @@ loop01:
 block02:
 		cmp x, 0
 		jl returnfalse
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -1
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -1
 		cmp y, eax
 		jge returnfalse
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE,0
+		invoke TalDiv, WindowWidth, BLOCK_SIZE,0
 		cmp x, eax
 		jge returnfalse
 		mov ebx, x
@@ -1750,10 +1741,10 @@ loop02:
 block03:
 		cmp x, 3
 		jl returnfalse
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -1
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -1
 		cmp y, eax
 		jge returnfalse
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, -1
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, -1
 		cmp x, eax
 		jg returnfalse
 		mov ebx, x
@@ -1784,10 +1775,10 @@ block1:
 block10:
 		cmp x, 1
 		jl returnfalse
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, -2
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, -2
 		cmp x, eax
 		jg returnfalse
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -2
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -2
 		cmp y, eax
 		jge returnfalse
  
@@ -1816,10 +1807,10 @@ loop10:
 block11:
 		cmp x, 0
 		jl returnfalse
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, -2
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, -2
 		cmp x, eax
 		jg returnfalse
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -2
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -2
 		cmp y, eax
 		jge returnfalse
  
@@ -1847,10 +1838,10 @@ loop11:
 block12:
 		cmp x, 1
 		jl returnfalse
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, -2
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, -2
 		cmp x, eax
 		jg returnfalse
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -1
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -1
 		cmp y, eax
 		jge returnfalse
  
@@ -1878,10 +1869,10 @@ loop12:
 block13:
 		cmp x, 1
 		jl returnfalse
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, -1
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, -1
 		cmp x, eax
 		jg returnfalse
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -2
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -2
 		cmp y, eax
 		jge returnfalse
  
@@ -1919,14 +1910,14 @@ block2:
 		je block23
  
 block20:
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, -2
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, -2
 		cmp x, eax
 		jg returnfalse
  
 		cmp x, 0
 		jl returnfalse
  
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -2
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -2
 		cmp y, eax
 		jge returnfalse
  
@@ -1984,11 +1975,11 @@ block30:
 		cmp x, 0
 		jl returnfalse
                                
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -3
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -3
 		cmp y, eax
 		jg returnfalse
  
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, -3
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, -3
 		cmp x, eax
 		jg returnfalse
  
@@ -2017,11 +2008,11 @@ block31:
  
 		cmp x, 0
 		jl returnfalse
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -2
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -2
 		cmp y, eax
 		jg returnfalse
  
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, -2
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, -2
 		cmp x, eax
 		jg returnfalse
  
@@ -2051,12 +2042,12 @@ block32:
 		cmp x, 2
 		jl returnfalse
                
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -1
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -1
  
 		cmp y, eax
 		jge returnfalse
  
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, -1
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, -1
  
 		cmp x, eax
 		jg returnfalse
@@ -2089,11 +2080,11 @@ block33:
 		cmp x, 1
 		jl returnfalse
  
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -4
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -4
 		cmp y,  eax
 		jg returnfalse
        
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, -1
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, -1
 		cmp x, eax
 		jg returnfalse
  
@@ -2132,11 +2123,11 @@ block4:
 block40:
 		cmp x, 2
 		jl returnfalse
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, -1
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, -1
 		cmp x, eax
 		jg returnfalse
  
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -3
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -3
 		cmp y, eax
 		jg returnfalse
  
@@ -2163,11 +2154,11 @@ loop40:
 block41:
 		cmp x, 1
 		jl returnfalse
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, -1
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, -1
 		cmp x, eax
 		jg returnfalse
  
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -2
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -2
 		cmp y, eax
 		jg returnfalse
  
@@ -2195,11 +2186,11 @@ block42:
 		cmp x, 0
 		jl returnfalse
  
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, -3
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, -3
 		cmp x, eax
 		jg returnfalse
  
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -2
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -2
 		cmp y, eax
 		jg returnfalse
  
@@ -2226,11 +2217,11 @@ block43:
 		cmp x, 0
 		jl returnfalse
  
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, -2
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, -2
 		cmp x, eax
 		jg returnfalse
  
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -4
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -4
 		cmp y, eax
 		jg returnfalse
  
@@ -2267,11 +2258,11 @@ block5:
 block50:
 		cmp x, 1
 		jl returnfalse
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, -2
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, -2
 		cmp x, eax
 		jg returnfalse
  
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -2
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -2
 		cmp y, eax
 		jg returnfalse
  
@@ -2310,11 +2301,11 @@ block51:
 		cmp x, 1
 		jl returnfalse
                            
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, -1
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, -1
 		cmp x, eax
 		jg returnfalse
  
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -3
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -3
 		cmp y, eax
 		jg returnfalse
  
@@ -2364,11 +2355,11 @@ block6:
 block60:
 		cmp x, 1
 		jl returnfalse
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, -2
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, -2
 		cmp x, eax
 		jg returnfalse
  
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -2
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -2
 		cmp y, eax
 		jg returnfalse
  
@@ -2407,11 +2398,11 @@ block61:
 		cmp x, 1
 		jl returnfalse
  
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, -1
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, -1
 		cmp x, eax
 		jg returnfalse
  
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, -3
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, -3
 		cmp y, eax
 		jg returnfalse
  
@@ -2464,7 +2455,7 @@ CheckIfCanGo ENDP
  
 GetRandomBlock PROC
 		xor edx, edx
-		mov eax, WINDOW_WIDTH
+		mov eax, WindowWidth
 		mov edi, BLOCK_SIZE
 		idiv edi
 		xor edx, edx
@@ -2492,7 +2483,7 @@ ClearSideBarGrid PROC
  
 		mov ebx, 0
 		mov edx, 0
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, 0
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, 0
 		mov ecx, eax
 outerloop:
 		mov backupecx, ecx
@@ -2510,7 +2501,7 @@ ClearSideBarGrid ENDP
  
  
 ChangeBlock PROC
-
+		
 		invoke ClearSideBarGrid
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,CurrentColor
 		mov esi, offset next2blocks
@@ -2547,7 +2538,7 @@ ChangeBlock PROC
 		pop BlockType
  
 
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, 0
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, 0
 		invoke TalDiv, eax, 2, 0
 		mov ebx, eax
 		mov edx, 0
@@ -2557,6 +2548,7 @@ ChangeBlock PROC
 		mov youlosestate, 1                    
 		invoke GetAsyncKeyState, VK_DOWN
 endfunc:
+		invoke ClearFullLines
 		ret
 ChangeBlock ENDP
  
@@ -2625,7 +2617,7 @@ local HOld:HBITMAP
 		mov hdcMem, eax
 		invoke SelectObject, hdcMem, img
 		mov HOld, eax
-		invoke BitBlt,hdc,x,y,REAL_WINDOW_WIDTH,WINDOW_HEIGHT,hdcMem,0,0,SRCCOPY
+		invoke BitBlt,hdc,x,y,RealWindowWidth,WindowHeight,hdcMem,0,0,SRCCOPY
 		invoke SelectObject,hdcMem,HOld
 		invoke DeleteDC,hdcMem
 		ret
@@ -2655,10 +2647,10 @@ local HOld:HDC
 		mov hdcMem, eax
 		invoke SelectObject, hdcMem, maskedimg
 		mov HOld, eax
-		invoke BitBlt,hdc,x,y,REAL_WINDOW_WIDTH,WINDOW_HEIGHT,hdcMem,0,0,SRCAND
+		invoke BitBlt,hdc,x,y,RealWindowWidth,WindowHeight,hdcMem,0,0,SRCAND
                
 		invoke SelectObject, hdcMem, img
-		invoke BitBlt,hdc,x,y,REAL_WINDOW_WIDTH,WINDOW_HEIGHT,hdcMem,0,0,SRCPAINT
+		invoke BitBlt,hdc,x,y,RealWindowWidth,WindowHeight,hdcMem,0,0,SRCPAINT
 		invoke DeleteObject, HOld
 		invoke DeleteDC,hdcMem
 		ret
@@ -2685,7 +2677,7 @@ DrawImage_WithMask_WithResize ENDP
 DrawMainMenuButtons PROC, hdc:HDC, highlightedbutton:BYTE
  
 
-		mov eax, WINDOW_HEIGHT
+		mov eax, WindowHeight
 		mov bx, 10
 		idiv bx
 		mov marginBetweenButtons, eax
@@ -2693,14 +2685,14 @@ DrawMainMenuButtons PROC, hdc:HDC, highlightedbutton:BYTE
 
 
 		xor edx, edx
-		mov eax, WINDOW_WIDTH
+		mov eax, WindowWidth
 		mov edi, 2
 		idiv edi
 		mov esi, eax
 		sub esi, BUTTONS_MARGIN
 		add esi, 100
  
-		invoke TalDiv, WINDOW_HEIGHT, 2, -30
+		invoke TalDiv, WindowHeight, 2, -30
 		mov edx, eax
 		xor eax, eax
 		mov al, highlightedbutton
@@ -2711,7 +2703,7 @@ DrawMainMenuButtons PROC, hdc:HDC, highlightedbutton:BYTE
 		invoke DrawImage_WithMask_WithResize, hdc, HHighLightBox, HHighLightMask, esi, edx, 240,60,0,0, 240,60 ;;;
 		pop esi
  
-		invoke TalDiv, WINDOW_HEIGHT, 2, -30
+		invoke TalDiv, WindowHeight, 2, -30
 		mov edx, eax
 		pusha
 		invoke DrawImage_WithMask_WithResize, hdc, HNewGame, HNewGameMask, esi, edx, 240,60,0,0, 240,60
@@ -2798,14 +2790,14 @@ DrawGameOverButtons ENDP
 DrawPauseButtons PROC, hdc:HDC, highlightedbutton:BYTE
  
 		xor edx, edx
-		mov eax, WINDOW_WIDTH
+		mov eax, WindowWidth
 		mov edi, 2
 		idiv edi
 		mov esi, eax
 		sub esi, BUTTONS_MARGIN
 		add esi, 90
  
-		invoke TalDiv, WINDOW_HEIGHT, 2, 0
+		invoke TalDiv, WindowHeight, 2, 0
 		mov edx, eax
 		xor eax, eax
 		mov al, highlightedbutton
@@ -2815,7 +2807,7 @@ DrawPauseButtons PROC, hdc:HDC, highlightedbutton:BYTE
 		invoke DrawImage_WithMask, hdc, HHighLightBox, HHighLightMask, esi, edx
 		pop esi
  
-		invoke TalDiv, WINDOW_HEIGHT, 2, 0
+		invoke TalDiv, WindowHeight, 2, 0
 		mov edx, eax
 		pusha
 		invoke DrawImage_WithMask, hdc, HResume, HResumeMask, esi, edx
@@ -2849,11 +2841,11 @@ ClearGrid PROC
  
 		mov ebx, 0
 		mov edx, 0
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, 0
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, 0
 		mov ecx, eax
 outerloop:
 		mov backupecx, ecx
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, 0
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, 0
 		mov ecx, eax
 innerloop:
 		pusha
@@ -2878,23 +2870,23 @@ local pen:HPEN
  
  
 		mov edx, BLOCK_SIZE
-		invoke TalDiv, WINDOW_HEIGHT, BLOCK_SIZE, 0
+		invoke TalDiv, WindowHeight, BLOCK_SIZE, 0
 		mov ecx, eax
 horizontallines:
 		pusha
 		invoke MoveToEx, hdc, 0, edx, NULL
-		invoke LineTo, hdc, WINDOW_WIDTH, edx
+		invoke LineTo, hdc, WindowWidth, edx
 		popa
 		add edx, BLOCK_SIZE
 		loop horizontallines
  
 		mov ebx,40
-		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, 0
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, 0
 		mov ecx, eax
 verticallines:
 		pusha
 		invoke MoveToEx, hdc, ebx, 0, NULL
-		invoke LineTo, hdc, ebx, WINDOW_HEIGHT
+		invoke LineTo, hdc, ebx, WindowHeight
 		popa
 		add ebx, BLOCK_SIZE
 		loop verticallines
@@ -3067,7 +3059,7 @@ endcheck:
 		mov PauseState ,0
  
 		xor edx, edx
-		mov eax, WINDOW_WIDTH
+		mov eax, WindowWidth
 		mov ebx, BLOCK_SIZE
 		idiv ebx
 		xor edx, edx
@@ -3360,7 +3352,7 @@ Update PROC
 
 
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,0ffh
-		invoke ClearFullLines
+		;
 		;~~~ Move Block Down
 		inc BlockY
 		invoke CheckIfCanGo, BlockX, BlockY, BlockType, BlockMode
@@ -3583,18 +3575,6 @@ local hOld:HBITMAP
 local hbmMem:HBITMAP
 local brushcolouring:HBRUSH
  
-		inc FramesPassedSinceLastFlip
-		inc FramesPassedSinceLastDownClick
-		inc FramesPassedSinceLastMoveDown
-		inc FramesPassedSinceLastClick
-		inc FramesPassedSinceLastPause
-		inc FramesPassedSinceLastArrowClick
-		inc FramesPassedSinceLastEnterClick
-		inc framesPassedSinceLastSendMessage
-		inc FramesPassedSinceLastThemeChange
-		inc FramesPassedSinceLastChangeBlock
-                           
- 
 		cmp youlosestate, 1
 		je youlosescreen
  
@@ -3664,7 +3644,7 @@ paintpausepicture:
 
 		invoke BeginPaint, hWnd, addr paint
 		mov hdc, eax
-		invoke DrawImage_WithStretch, hdc, HPauseScreen, 0,0,0,0,700,800,REAL_WINDOW_WIDTH,WINDOW_HEIGHT
+		invoke DrawImage_WithStretch, hdc, HPauseScreen, 0,0,0,0,700,800,RealWindowWidth,WindowHeight
 		invoke DrawPauseButtons, hdc, highlighted
 		invoke EndPaint, hWnd, addr paint
 		ret
@@ -3686,7 +3666,7 @@ drawgame:
  
 		invoke CreateCompatibleDC, hdc
 		mov hdcMem, eax
-		invoke CreateCompatibleBitmap, hdc, REAL_WINDOW_WIDTH, WINDOW_HEIGHT
+		invoke CreateCompatibleBitmap, hdc, RealWindowWidth, WindowHeight
 		mov hbmMem, eax
  
 		invoke SelectObject,hdcMem, hbmMem
@@ -3717,7 +3697,7 @@ blacktheme:
  
                                                            
 afterthemes:
-		invoke BitBlt,hdc, 0, 0, REAL_WINDOW_WIDTH, WINDOW_HEIGHT, hdcMem, 0, 0, SRCCOPY
+		invoke BitBlt,hdc, 0, 0, RealWindowWidth, WindowHeight, hdcMem, 0, 0, SRCCOPY
                                                            
 		invoke SelectObject,hdcMem, hOld;
 		invoke DeleteObject,hbmMem;
@@ -3749,7 +3729,7 @@ local brushcolouring:HBRUSH
 		cmp message,    WM_TIMER
 		je        timing
 		cmp message, WM_ERASEBKGND
-		je returnnonzero
+		je		  returnnonzero
 		cmp message,    WM_CLOSE
 		je        closing
 		cmp message, WM_CREATE
@@ -3807,8 +3787,6 @@ LOCAL wndcls:WNDCLASSA ; Class struct for the window
 LOCAL hWnd:HWND ;Handle to the window
 LOCAL msg:MSG
  
-LOCAL msg2:MSG
- 
 		invoke RtlZeroMemory, addr wndcls, SIZEOF wndcls ;Empty the window class
 		mov eax, offset ClassName
 		mov wndcls.lpszClassName, eax ;Set the class name
@@ -3822,12 +3800,12 @@ LOCAL msg2:MSG
 
 
 	
-		invoke CreateWindowExA, WS_EX_COMPOSITED, addr ClassName, addr windowTitle, WS_SYSMENU, 0, 0, REAL_WINDOW_WIDTH, WINDOW_HEIGHT, 0, 0, 0, 0 ;Create the window
+		invoke CreateWindowExA, WS_EX_COMPOSITED, addr ClassName, addr windowTitle, WS_SYSMENU, 0, 0, RealWindowWidth, WindowHeight, 0, 0, 0, 0 ;Create the window
 		mov hWnd, eax ;Save the handle
 		add wndcls.style, WS_CLIPCHILDREN
 		invoke ShowWindow, eax, SW_SHOW ;Show it
 		invoke SetTimer, hWnd, MAIN_TIMER_ID, 25, NULL ;Set the repaint timer
-		invoke SetTimer, hWnd, TM_UPDATE, 250, NULL
+		invoke SetTimer, hWnd, TM_UPDATE, INITIAL_UPDATE_TIMER , NULL
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, 100, NULL
 
                            
