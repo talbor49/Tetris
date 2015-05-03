@@ -2981,8 +2981,7 @@ endabout:
 
 
  Options PROC
-
-                      
+      
 		mov optionscreenstate, 1
 		invoke GetAsyncKeyState, VK_UP
 		cmp eax, 0
@@ -3109,15 +3108,24 @@ endcheck:
  
  GetInputFromKeyboard PROC
 		cmp startscreen, 1
-		je startscreenprocedure
-		cmp PauseState, 1
-		je pauseprocedure
+		je startscreenprocedure		
 		cmp youlosestate, 1
 		je youloseprocedure
 		cmp optionscreenstate, 1
-		je endoffunc
+		je options
+		cmp PauseState, 1
+		je pauseprocedure
         
 
+
+		invoke GetAsyncKeyState, VK_ESCAPE
+		cmp eax, 0
+		je skippause1
+		inc PauseState
+		ret
+
+
+		skippause1:
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,0ffh
 
 		invoke GetAsyncKeyState, VK_RIGHT
@@ -3273,20 +3281,10 @@ resume:
 		pauseprocedure:
 		invoke GetAsyncKeyState, VK_ESCAPE
 		cmp eax, 0
-		je skippause
-		cmp PauseState, 1
-		je resume
-		inc PauseState
- 
- 
-		jmp skippause
-cancelpause:
-		invoke PlaySound, offset soundpath, NULL, SND_LOOP + SND_ASYNC
-		mov highlighted, 0
-		mov PauseState, 0
-skippause:
-		ret
- 
+		je pausescreenprocedure
+		jmp resume
+		 
+
 pausescreenprocedure:
 		invoke PlaySound, NULL, NULL, NULL       
  
