@@ -3095,16 +3095,27 @@ endcheck:
  NewGame ENDP
 
 
+ MainMenu PROC
 
+ invoke GetAsyncKeyState, VK_DOWN
+		invoke GetAsyncKeyState, VK_UP
+		invoke GetAsyncKeyState, VK_RETURN
+		mov youlosestate, 0
+		mov startscreen, 1
+		mov FramesPassedSinceLastArrowClick, 0
+		mov FramesPassedSinceLastEnterClick, 0
+		mov highlighted, 0
+		ret
+ MainMenu ENDP
 
  
  GetInputFromKeyboard PROC
 		cmp startscreen, 1
 		je startscreenprocedure
 		cmp PauseState, 1
-		je endoffunc
+		je pauseprocedure
 		cmp youlosestate, 1
-		je endoffunc
+		je youloseprocedure
 		cmp optionscreenstate, 1
 		je endoffunc
         
@@ -3165,7 +3176,7 @@ skipmoving:
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,CurrentColor
 		ret
 
-
+		;~~~~~~~~~~~ START OF STARTSCREEN PROCEDURE
 		startscreenprocedure: 
 		invoke GetAsyncKeyState, VK_DOWN
 		cmp eax, 0
@@ -3203,6 +3214,8 @@ aftercheckup:
 		je about              
 		invoke Close
 
+		;~~~~~~~~~~~ END OF STARTSCREEN PROCEDURE
+
 
 	newgame:
 	invoke NewGame
@@ -3216,65 +3229,13 @@ aftercheckup:
 	invoke About
 	ret
 
-endoffunc:
- ret
- GetInputFromKeyboard ENDP
-
-
-
-Update PROC
-  
-		cmp youlosestate, 1
-		je youlosescreen
- 
-		cmp optionscreenstate, 1
-		je options
- 
-		cmp startscreen, 1
-		je endupdate
- 
-		cmp aboutpage, 1
-		je about
-                               
-		jmp pausething
-
-
- 
- 
-closing:
-		invoke Close
- 
-endupdate:
- 
-		ret
- 
-newgame:
-		invoke NewGame
-		ret
-options:      
-		invoke Options
-		ret
- 
- 
- 
- 
- 
- 
- 
-about:
-	invoke About
+	mainmenu:
+	invoke MainMenu
 	ret
- 
- 
- 
- 
- 
-youlosescreen:
- 
-                           
-		cmp FramesPassedSinceLastArrowClick, 5
-		jl skipchangehighlighted3
-		mov FramesPassedSinceLastArrowClick, 0
+
+		;~~~~~~~~~~~~~~~~~~~~~~~~ START YOULOSE PROCEDURE
+
+	youloseprocedure:
 		invoke GetAsyncKeyState, VK_RIGHT
 		cmp eax, 0
 		jne changehighlighted3
@@ -3291,31 +3252,31 @@ changehighlighted3:
  
 skipchangehighlighted3:
  
-		cmp FramesPassedSinceLastEnterClick, 10
-		jl skipenterclick3
+ 		cmp FramesPassedSinceLastEnterClick, 10
+		jl endoffunc
 		mov FramesPassedSinceLastEnterClick, 0
 		invoke GetAsyncKeyState, VK_RETURN
 		cmp eax, 0
-		je skipenterclick3
+		je endoffunc
 		mov bl, highlightedgameover
 		mov highlightedgameover, 0
 		cmp bl, 0
 		je newgame
 		jmp mainmenu
- 
-skipenterclick3:
- 
-		ret
- 
- 
- 
- 
+		;~~~~~~~~~~~~~~~~~~~~~~~~ END YOULOSE PROCEDURE
 
-                               
-pausething:
-		cmp FramesPassedSinceLastPause, 10
-		jl skippause
-		mov FramesPassedSinceLastPause, 0
+		 
+resume:
+		invoke PlaySound, offset soundpath, NULL, SND_LOOP + SND_ASYNC 
+		mov highlighted, 0
+		mov PauseState, 0
+		ret
+
+		;~~~~~~~~~~~~~~~~~~~~~~~ PAUSE PROCEDURE
+
+
+
+		pauseprocedure:
 		invoke GetAsyncKeyState, VK_ESCAPE
 		cmp eax, 0
 		je skippause
@@ -3330,19 +3291,11 @@ cancelpause:
 		mov highlighted, 0
 		mov PauseState, 0
 skippause:
-		cmp PauseState, 1
-		jne donormally
+		ret
  
-paintpicture:
-		invoke PlaySound, NULL, NULL, NULL
-                                                           
+pausescreenprocedure:
+		invoke PlaySound, NULL, NULL, NULL       
  
- 
- 
- 
-		cmp FramesPassedSinceLastArrowClick, 5
-		jl aftercheckup1
-		mov FramesPassedSinceLastArrowClick, 0
 		invoke GetAsyncKeyState, VK_DOWN
 		cmp eax, 0
 		je checkup1
@@ -3367,7 +3320,7 @@ aftercheckup1:
  
 		invoke GetAsyncKeyState, VK_RETURN
 		cmp eax, 0
-		je endpaint1
+		je endoffunc
  
 		cmp highlighted, 0
 		je resume
@@ -3376,81 +3329,51 @@ aftercheckup1:
 		cmp highlighted, 2
 		je options
 		jmp mainmenu
+
+
+		;~~~~~~~~~~~~~~~~~~~~~~~ END PAUSE PROCEDURE
+
+
+endoffunc:
+ ret
+ GetInputFromKeyboard ENDP
+
+
+
+Update PROC
+  
+		
+		cmp youlosestate, 1
+		je endupdate
  
-                           
+		cmp optionscreenstate, 1
+		je endupdate
  
+		cmp startscreen, 1
+		je endupdate
  
-endpaint1:
-		ret
- 
- 
-mainmenu:
-		invoke GetAsyncKeyState, VK_DOWN
-		invoke GetAsyncKeyState, VK_UP
-		invoke GetAsyncKeyState, VK_RETURN
-		mov youlosestate, 0
-		mov startscreen, 1
-		mov FramesPassedSinceLastArrowClick, 0
-		mov FramesPassedSinceLastEnterClick, 0
-		mov highlighted, 0
-		ret
-resume:
-		invoke PlaySound, offset soundpath, NULL, SND_LOOP + SND_ASYNC
- 
-		mov highlighted, 0
-		mov PauseState, 0
-		ret
-donormally:
- 
-                                                           
- 
+		cmp aboutpage, 1
+		je endupdate
+                               
+		cmp PauseState, 1
+		je endupdate
+
+
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,0ffh
 		invoke ClearFullLines
 		;~~~ Move Block Down
-		cmp FramesPassedSinceLastMoveDown, 25
-		jl checkrightbutton
-		mov FramesPassedSinceLastMoveDown, 0
 		inc BlockY
 		invoke CheckIfCanGo, BlockX, BlockY, BlockType, BlockMode
 		cmp eax, 1
-		je skipchangingblock
+		je redrawblock
 		dec BlockY
-		cmp FramesPassedSinceLastChangeBlock, 10
-		jl skipchangeblock
-		mov FramesPassedSinceLastChangeBlock, 0
 		invoke ChangeBlock
-skipchangeblock:
- 
 		ret
-		;~~~ End move block down
-skipchangingblock:
- 
-		;~~~~~ Take input from buttons and move block
-checkrightbutton:
-		
-checkleftbutton:
-		
-checkupbutton:
-		
- 
-resetblockmode:
-		
-checkifcanflip:
-		
-put3blockmode:
-		
-checkdownbutton:
-		
-skipmoving:
-		;~~~~ End of taking input from buttons and moving block
-                           
- 
-		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,CurrentColor                                                      
-                                                         
- 
- 
- 
-                                                           
+
+		redrawblock:
+		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,CurrentColor
+endupdate:
+                            
 		ret                          
  
 Update ENDP
@@ -3852,7 +3775,6 @@ painting:
 		invoke GetTickCount 
 		sub eax, ebx
 
-		invoke Update
 		ret
  
 update:
@@ -3905,7 +3827,7 @@ LOCAL msg2:MSG
 		add wndcls.style, WS_CLIPCHILDREN
 		invoke ShowWindow, eax, SW_SHOW ;Show it
 		invoke SetTimer, hWnd, MAIN_TIMER_ID, 25, NULL ;Set the repaint timer
-		invoke SetTimer, hWnd, TM_UPDATE, 25, NULL
+		invoke SetTimer, hWnd, TM_UPDATE, 250, NULL
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, 100, NULL
 
                            
