@@ -61,6 +61,8 @@ Todo list:
 		INITIAL_UPDATE_TIMER equ 750
  
 .data
+		randomColor db 0
+
 		marginBetweenButtons DWORD ?
 		WindowWidth DWORD 400
 		RealWindowWidth DWORD 700
@@ -170,6 +172,7 @@ TalDiv PROC, divided:DWORD, divisor:DWORD, amountToAdd:DWORD
 		ret
 TalDiv ENDP
  
+
  
 GetColor PROC, index:BYTE
 		;Get color by index
@@ -2466,16 +2469,24 @@ GetRandomBlock PROC
 		mov BlockMode, 0
 		invoke GetRandomNumber, 4, offset randombuffer
 		mov eax, randombuffer
-		xor dx, dx
-		mov bx, 10
-		div bx
-		mov CurrentColor, dl
-		invoke GetRandomNumber, 4, offset randombuffer
-		mov eax, randombuffer
 		xor edx, edx
 		mov bx, 7
 		div bx
 		mov BlockType, edx
+		cmp randomColor, 0
+		je getcolorfromblock
+		invoke GetRandomNumber, 4, offset randombuffer
+		mov eax, randombuffer
+		xor dx, dx
+		mov bx, 8
+		div bx
+		mov CurrentColor, dl
+		ret
+		getcolorfromblock:
+
+		mov eax, BlockType
+		mov CurrentColor, al
+
 		ret
 GetRandomBlock ENDP
  
@@ -3035,7 +3046,6 @@ endoperations:
 		;mov startscreen, 1
 		mov optionscreenstate, 0
 		invoke Sleep, 10
-		mov FramesPassedSinceLastPause, 0
 endcheck:
 		ret
 
@@ -3053,8 +3063,6 @@ endcheck:
 		mov youlosestate, 0
 		mov optionscreenstate, 0
 		mov score, 0
-		mov FramesPassedSinceLastArrowClick, 0
-		mov FramesPassedSinceLastEnterClick, 0
 		mov highlighted, 0
 		mov PauseState ,0
  
@@ -3094,8 +3102,6 @@ endcheck:
 		invoke GetAsyncKeyState, VK_RETURN
 		mov youlosestate, 0
 		mov startscreen, 1
-		mov FramesPassedSinceLastArrowClick, 0
-		mov FramesPassedSinceLastEnterClick, 0
 		mov highlighted, 0
 		ret
  MainMenu ENDP
@@ -3243,10 +3249,6 @@ changehighlighted3:
 		xor highlightedgameover, 1  ;if highlighted is 0 - make it 1. if highlighted is 1 - make it 0.
  
 skipchangehighlighted3:
- 
- 		cmp FramesPassedSinceLastEnterClick, 10
-		jl endoffunc
-		mov FramesPassedSinceLastEnterClick, 0
 		invoke GetAsyncKeyState, VK_RETURN
 		cmp eax, 0
 		je endoffunc
