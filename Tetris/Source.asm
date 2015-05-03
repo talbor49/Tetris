@@ -44,7 +44,7 @@ Todo list:
 		10. Make fullscreen
 		11. Add an option to store a block for later
 		12. Let you flip block even if you are near a wall;
- 
+		13. Fix resolution of blocks - maybe implement images instead of rectangles
 		@
  
  
@@ -57,7 +57,8 @@ Todo list:
 		BLACK_THEME equ 1
 		WHITE_THEME equ 0
 		TM_UPDATE equ 1337
- 
+		TM_GET_INPUT_FROM_KEYBOARD equ 1336
+
  
 .data
 		marginBetweenButtons DWORD ?
@@ -109,11 +110,7 @@ Todo list:
 		HChangeThemeMask HBITMAP ?
  
  
-<<<<<<< HEAD
 		theme DWORD WHITE_THEME
-=======
-		theme DWORD BLACK_THEME
->>>>>>> 047c05e2b94df5572182a900e291b4f8fd6acb44
 		AnimateHWnd HWND ?
 		offsetinstring DWORD 0
 		score DWORD 0
@@ -2550,13 +2547,8 @@ ChangeBlock PROC
 		pop BlockType
  
 
-		mov eax, WINDOW_WIDTH
-		mov ebx, BLOCK_SIZE
-		xor edx, edx
-		idiv ebx
-		mov ebx, 2
-		xor edx, edx
-		idiv ebx
+		invoke TalDiv, WINDOW_WIDTH, BLOCK_SIZE, 0
+		invoke TalDiv, eax, 2, 0
 		mov ebx, eax
 		mov edx, 0
 		invoke ReadGrid, ebx, edx
@@ -2958,112 +2950,37 @@ DrawNumber PROC, hdc:HDC, num:DWORD, x:DWORD, y:DWORD
 DrawNumber ENDP
  
  
-Update PROC
+ About PROC
+  
+		mov aboutpage, 1
+		mov startscreen, 0
+                           
  
-		jmp painting
-startscreenprocedure:
- 
- 
-		cmp FramesPassedSinceLastArrowClick, 5
-		jl aftercheckup
-		mov FramesPassedSinceLastArrowClick, 0
-		invoke GetAsyncKeyState, VK_DOWN
+		invoke GetAsyncKeyState, VK_ESCAPE
 		cmp eax, 0
-		je checkup
-		cmp highlighted, 3
-		je resethighlighted
-		inc highlighted
-		jmp aftercheckup
-resethighlighted:
-		mov highlighted, 0
-		jmp aftercheckup
-checkup:
-		invoke GetAsyncKeyState, VK_UP
-		cmp eax, 0
-		je aftercheckup
-		cmp highlighted, 0
-		je resetuphighlighted
-		dec highlighted
-		jmp aftercheckup
-resetuphighlighted:
-		mov highlighted, 3
-aftercheckup:
- 
-                                                           
- 
- 
-		cmp FramesPassedSinceLastEnterClick, 10
-		jl endpaint
-		mov FramesPassedSinceLastEnterClick, 0
+		jne endabout
  
 		invoke GetAsyncKeyState, VK_RETURN
 		cmp eax, 0
-		je endpaint
- 
-		cmp highlighted, 0
-		je newgame
-		cmp highlighted, 1
-		je options
-		cmp highlighted, 2
-		je about                         
-		jmp closing
+		jne endabout
  
  
-closing:
-		invoke Close
- 
-endpaint:
- 
+endaboutcheck:
 		ret
  
-newgame:
-		invoke ClearGrid
-		invoke ClearSideBarGrid
-		invoke PlaySound, offset soundpath, NULL, SND_LOOP + SND_ASYNC
-		invoke GenerateRandomBlocksToArray
-		mov startscreen, 0
-		mov youlosestate, 0
-<<<<<<< HEAD
-		mov optionscreenstate, 0
-=======
->>>>>>> 047c05e2b94df5572182a900e291b4f8fd6acb44
-		mov score, 0
-		mov FramesPassedSinceLastArrowClick, 0
-		mov FramesPassedSinceLastEnterClick, 0
-		mov highlighted, 0
-		mov PauseState ,0
  
-		xor edx, edx
-		mov eax, WINDOW_WIDTH
-		mov ebx, BLOCK_SIZE
-		idiv ebx
-		xor edx, edx
-		mov ebx, 2
-		idiv ebx
- 
-		mov BlockX, eax
-		mov BlockY, -2
-		mov BlockMode, 0
-		invoke GetRandomNumber, 4, offset randombuffer
-		mov eax, randombuffer
-		xor dx, dx
-		mov bx, 10
-		div bx
-		mov CurrentColor, dl
-		invoke GetRandomNumber, 4, offset randombuffer
-		mov eax, randombuffer
-		xor edx, edx
-		mov bx, 7
-		div bx
-		mov BlockType, edx
+endabout:
+		mov aboutpage, 0
+		mov startscreen, 1
 		ret
-options:
-                           
- 
+
+ About ENDP
+
+
+ Options PROC
+
+                      
 		mov optionscreenstate, 1
-		cmp FramesPassedSinceLastDownClick, 10
-		jl dooperation
-		mov FramesPassedSinceLastDownClick, 0
 		invoke GetAsyncKeyState, VK_UP
 		cmp eax, 0
 		je checkdown4
@@ -3078,10 +2995,7 @@ dooperation:
 		cmp highlightedoptionsscreen , 0
 		je volumechangeoperation
  
-		;theme change operation
-		cmp FramesPassedSinceLastThemeChange, 10
-		jl endoperations
-		mov FramesPassedSinceLastThemeChange, 0
+		;theme change operation		
 		invoke GetAsyncKeyState, VK_RIGHT
 		cmp eax, 0
 		jne changetheme
@@ -3132,7 +3046,214 @@ endoperations:
 		mov FramesPassedSinceLastPause, 0
 endcheck:
 		ret
+
+ Options ENDP
+
+
+ NewGame PROC
+
  
+		invoke ClearGrid
+		invoke ClearSideBarGrid
+		invoke PlaySound, offset soundpath, NULL, SND_LOOP + SND_ASYNC
+		invoke GenerateRandomBlocksToArray
+		mov startscreen, 0
+		mov youlosestate, 0
+		mov optionscreenstate, 0
+		mov score, 0
+		mov FramesPassedSinceLastArrowClick, 0
+		mov FramesPassedSinceLastEnterClick, 0
+		mov highlighted, 0
+		mov PauseState ,0
+ 
+		xor edx, edx
+		mov eax, WINDOW_WIDTH
+		mov ebx, BLOCK_SIZE
+		idiv ebx
+		xor edx, edx
+		mov ebx, 2
+		idiv ebx
+ 
+		mov BlockX, eax
+		mov BlockY, -2
+		mov BlockMode, 0
+		invoke GetRandomNumber, 4, offset randombuffer
+		mov eax, randombuffer
+		xor dx, dx
+		mov bx, 10
+		div bx
+		mov CurrentColor, dl
+		invoke GetRandomNumber, 4, offset randombuffer
+		mov eax, randombuffer
+		xor edx, edx
+		mov bx, 7
+		div bx
+		mov BlockType, edx
+		ret
+
+
+ NewGame ENDP
+
+
+
+
+ 
+ GetInputFromKeyboard PROC
+		cmp startscreen, 1
+		je startscreenprocedure
+		cmp PauseState, 1
+		je endoffunc
+		cmp youlosestate, 1
+		je endoffunc
+		cmp optionscreenstate, 1
+		je endoffunc
+        
+
+		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,0ffh
+
+		invoke GetAsyncKeyState, VK_RIGHT
+		cmp eax, 0
+		je checkleftbutton		 
+		inc BlockX
+		invoke CheckIfCanGo, BlockX, BlockY, BlockType, BlockMode
+		cmp eax, 1
+		je checkleftbutton
+		dec BlockX
+		jmp checkupbutton
+checkleftbutton:
+		invoke GetAsyncKeyState, VK_LEFT
+		cmp eax, 0
+		je checkupbutton	
+		dec BlockX
+		invoke CheckIfCanGo, BlockX, BlockY, BlockType, BlockMode
+		cmp eax, 1
+		je checkupbutton
+		inc BlockX
+checkupbutton:
+		invoke GetAsyncKeyState, VK_UP
+		cmp eax, 0
+		je checkdownbutton
+		cmp BlockMode, 3
+		je resetblockmode
+		inc BlockMode
+		jmp checkifcanflip
+ 
+resetblockmode:
+		mov BlockMode, 0
+checkifcanflip:
+		invoke CheckIfCanGo, BlockX, BlockY, BlockType, BlockMode
+		cmp eax, 0
+		jne checkdownbutton
+		cmp BlockMode, 0
+		je put3blockmode
+		dec BlockMode
+		jmp checkdownbutton
+put3blockmode:
+		mov BlockMode, 3
+checkdownbutton:
+		invoke GetAsyncKeyState, VK_DOWN
+		cmp eax, 0
+		je skipmoving
+		inc BlockY
+		inc score
+		invoke CheckIfCanGo, BlockX, BlockY, BlockType, BlockMode
+		cmp eax, 1
+		je skipmoving
+		dec BlockY		
+		invoke ChangeBlock
+skipmoving:
+		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,CurrentColor
+		ret
+
+
+		startscreenprocedure: 
+		invoke GetAsyncKeyState, VK_DOWN
+		cmp eax, 0
+		je checkup
+		cmp highlighted, 3
+		je resethighlighted
+		inc highlighted
+		jmp aftercheckup
+resethighlighted:
+		mov highlighted, 0
+		jmp aftercheckup
+checkup:
+		invoke GetAsyncKeyState, VK_UP
+		cmp eax, 0
+		je aftercheckup
+		cmp highlighted, 0
+		je resetuphighlighted
+		dec highlighted
+		jmp aftercheckup
+resetuphighlighted:
+		mov highlighted, 3
+aftercheckup:
+ 
+                    
+ 
+		invoke GetAsyncKeyState, VK_RETURN
+		cmp eax, 0
+		je endoffunc
+ 
+		cmp highlighted, 0
+		je newgame
+		cmp highlighted, 1
+		je options
+		cmp highlighted, 2
+		je about              
+		invoke Close
+
+
+	newgame:
+	invoke NewGame
+	ret
+
+	options:
+	invoke Options
+	ret
+
+	about:
+	invoke About
+	ret
+
+endoffunc:
+ ret
+ GetInputFromKeyboard ENDP
+
+
+
+Update PROC
+  
+		cmp youlosestate, 1
+		je youlosescreen
+ 
+		cmp optionscreenstate, 1
+		je options
+ 
+		cmp startscreen, 1
+		je endupdate
+ 
+		cmp aboutpage, 1
+		je about
+                               
+		jmp pausething
+
+
+ 
+ 
+closing:
+		invoke Close
+ 
+endupdate:
+ 
+		ret
+ 
+newgame:
+		invoke NewGame
+		ret
+options:      
+		invoke Options
+		ret
  
  
  
@@ -3141,31 +3262,8 @@ endcheck:
  
  
 about:
-		mov aboutpage, 1
-		mov startscreen, 0
-		mov FramesPassedSinceLastArrowClick, 0
-                           
- 
-		invoke GetAsyncKeyState, VK_ESCAPE
-		cmp eax, 0
-		jne endabout
- 
-		cmp FramesPassedSinceLastEnterClick, 10
-		jl endaboutcheck
-		mov FramesPassedSinceLastEnterClick, 0
-		invoke GetAsyncKeyState, VK_RETURN
-		cmp eax, 0
-		jne endabout
- 
- 
-endaboutcheck:
-		ret
- 
- 
-endabout:
-		mov aboutpage, 0
-		mov startscreen, 1
-		ret
+	invoke About
+	ret
  
  
  
@@ -3212,21 +3310,7 @@ skipenterclick3:
  
  
  
-painting:
- 
-		cmp youlosestate, 1
-		je youlosescreen
- 
-		cmp optionscreenstate, 1
-		je options
- 
-		cmp startscreen, 1
-		je startscreenprocedure
- 
-		cmp aboutpage, 1
-		je about
-                               
-		jmp pausething
+
                                
 pausething:
 		cmp FramesPassedSinceLastPause, 10
@@ -3343,74 +3427,20 @@ skipchangingblock:
  
 		;~~~~~ Take input from buttons and move block
 checkrightbutton:
-		invoke GetAsyncKeyState, VK_RIGHT
-		cmp eax, 0
-		je checkleftbutton
-		cmp FramesPassedSinceLastClick, 5
-		jl checkleftbutton  ;check that there is a delay between clicks
-		mov FramesPassedSinceLastClick, 0  
-		inc BlockX
-		invoke CheckIfCanGo, BlockX, BlockY, BlockType, BlockMode
-		cmp eax, 1
-		je checkupbutton
-		dec BlockX
-		jmp checkupbutton
+		
 checkleftbutton:
-		invoke GetAsyncKeyState, VK_LEFT
-		cmp eax, 0
-		je checkupbutton
-		cmp FramesPassedSinceLastClick, 5
-		jl checkupbutton  ;check that there is a delay between clicks
-		mov FramesPassedSinceLastClick, 0  
-		dec BlockX
-		invoke CheckIfCanGo, BlockX, BlockY, BlockType, BlockMode
-		cmp eax, 1
-		je checkupbutton
-		inc BlockX
-		jmp checkupbutton
+		
 checkupbutton:
-		invoke GetAsyncKeyState, VK_UP
-		cmp eax, 0
-		je checkdownbutton
-		cmp FramesPassedSinceLastFlip, 10
-		jl checkdownbutton
-		mov FramesPassedSinceLastFlip, 0
-		cmp BlockMode, 3
-		je resetblockmode
-		inc BlockMode
-		jmp checkifcanflip
+		
  
 resetblockmode:
-		mov BlockMode, 0
+		
 checkifcanflip:
-		invoke CheckIfCanGo, BlockX, BlockY, BlockType, BlockMode
-		cmp eax, 0
-		jne checkdownbutton
-		cmp BlockMode, 0
-		je put3blockmode
-		dec BlockMode
-		jmp checkdownbutton
+		
 put3blockmode:
-		mov BlockMode, 3
+		
 checkdownbutton:
-		invoke GetAsyncKeyState, VK_DOWN
-		cmp eax, 0
-		je skipmoving
-		cmp FramesPassedSinceLastDownClick, 3
-		jl skipmoving
-		mov FramesPassedSinceLastDownClick, 0
-		inc BlockY
-		inc score
-		invoke CheckIfCanGo, BlockX, BlockY, BlockType, BlockMode
-		cmp eax, 1
-		je skipmoving
-		dec BlockY
-		cmp FramesPassedSinceLastChangeBlock, 10
-		jl skipchangeblock2
-		mov FramesPassedSinceLastChangeBlock, 0
-		invoke ChangeBlock
-skipchangeblock2:
-		ret
+		
 skipmoving:
 		;~~~~ End of taking input from buttons and moving block
                            
@@ -3755,13 +3785,11 @@ blacktheme:
 		invoke DrawGrid, hdcMem
 		invoke DrawNext2Blocks
 		invoke DrawSideBarGrid, hdcMem, 400, 300
-<<<<<<< HEAD
 		invoke DrawImage_WithMask, hdcMem, HScore, HScoreMask, 400, 0
 		invoke DrawNumber, hdcMem, score, 400,56
-=======
-		;invoke DrawImage_WithMask, hdcMem, HScore, HScoreMask, 400, 0
-		;invoke DrawNumber, hdcMem, score, 400,56
->>>>>>> 047c05e2b94df5572182a900e291b4f8fd6acb44
+
+		invoke DrawImage_WithMask, hdcMem, HScore, HScoreMask, 400, 0
+		invoke DrawNumber, hdcMem, score, 400,56
 		invoke DrawGridLines, hdcMem
  
                                                            
@@ -3831,11 +3859,16 @@ update:
 		invoke Update
 		ret
  
+ getinputfromkeyboard:
+	invoke GetInputFromKeyboard
+	ret
  
  
 timing:
 		cmp wParam, TM_UPDATE
 		je update
+		cmp wParam, TM_GET_INPUT_FROM_KEYBOARD
+		je getinputfromkeyboard
 		invoke InvalidateRect, hWnd, NULL, FALSE
 		ret
 OtherInstances:
@@ -3873,6 +3906,7 @@ LOCAL msg2:MSG
 		invoke ShowWindow, eax, SW_SHOW ;Show it
 		invoke SetTimer, hWnd, MAIN_TIMER_ID, 25, NULL ;Set the repaint timer
 		invoke SetTimer, hWnd, TM_UPDATE, 25, NULL
+		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, 100, NULL
 
                            
  
