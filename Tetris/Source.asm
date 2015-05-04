@@ -32,7 +32,7 @@ option casemap :none                                      ; case sensitive
 		COMMENT @
 		
 Todo list:
-		1.Change window width and height
+		//1.Change window width and height
 		2.Make different game modes
 		3.More sound effects
 		4.Hurray on clear line
@@ -41,10 +41,12 @@ Todo list:
 		7.Fix score
 		8.Add leaderboards
 		9.Make better design
-		10. Make fullscreen
+		//10. Make fullscreen
 		11. Add an option to store a block for later
-		12. Let you flip block even if you are near a wall;
+		12. Let you flip block even if you are near a wall
 		13. Fix resolution of blocks - maybe implement images instead of rectangles
+		14. Add multiplayer on same computer
+		15.Fix youlose
 		@
  
  
@@ -59,10 +61,14 @@ Todo list:
 		TM_UPDATE equ 1337
 		TM_GET_INPUT_FROM_KEYBOARD equ 1336
 		INITIAL_UPDATE_TIMER equ 750
- 
+		INPUT_FROM_KEYBOARD_DELAY_IN_MENUS equ 100
+		INPUT_FROM_KEYBOARD_DELAY_IN_GAME equ 100
 .data
+		hWnd HWND ?
+		BitmapsBodyGuard1 db 10000 dup(0)
+		
 		randomColor db 0
-
+		timesDidntCheckUp DWORD 0
 		marginBetweenButtons DWORD ?
 		WindowWidth DWORD 400
 		RealWindowWidth DWORD 700
@@ -111,7 +117,16 @@ Todo list:
 		HChangeTheme HBITMAP ?
 		HChangeThemeMask HBITMAP ?
  
- 
+		HBlock0 HBITMAP ?
+		HBlock1 HBITMAP ?
+		HBlock2 HBITMAP ?
+		HBlock3 HBITMAP ?
+		HBlock4 HBITMAP ?
+		HBlock5 HBITMAP ?
+		HBlock6 HBITMAP ?
+
+		BitmapsBodyGuard2 db 10000 dup(0)
+
 		theme DWORD WHITE_THEME
 		AnimateHWnd HWND ?
 		offsetinstring DWORD 0
@@ -140,8 +155,8 @@ Todo list:
 		avipath db "foldermove.avi",0		
 		backupecx DWORD ?
 		next2blocks db 1000 dup(0ffh)
-		grid DB 100000 dup(00FFh)
-		sidebargrid DB 1000 dup (00FFh)
+		grid DB 10000 dup(00FFh)
+		sidebargrid DB 10000 dup (00FFh)
 		BlockX DWORD   0
 		BlockY DWORD   0
 		ClassName          DB     "Tetris",0
@@ -178,56 +193,40 @@ GetColor PROC, index:BYTE
 		;Get color by index
 startgetcolor:
 		cmp index, 0
-		je redcolor
+		je returnblock0
 		cmp index, 1
-		je greencolor
+		je returnblock1
 		cmp index, 2
-		je bluecolor
+		je returnblock2
 		cmp index, 3
-		je yellowcolor
+		je returnblock3
 		cmp index, 4
-		je turquoisecolor
+		je returnblock4
 		cmp index, 5
-		je orangecolor
+		je returnblock5
 		cmp index, 6
-		je purplecolor
-		cmp index, 7
-		je brightgreencolor
-		cmp index, 8
-		je pinkcolor
-		cmp index, 9
-		je limegreencolor
-		sub index, 9
-		jmp startgetcolor
-brightgreencolor:
-		mov eax, 0000003effc0h
+		je returnblock6
+		int 1Bh ;ERROR
+returnblock0:
+		mov eax, HBlock0
 		ret
-purplecolor:
-		mov eax, 0ff007fh
+returnblock1:
+		mov eax, HBlock1
 		ret
-orangecolor:
-		mov eax, 008CFFh  
+returnblock2:
+		mov eax, HBlock2
 		ret
-turquoisecolor:
-		mov eax, 000000FFFF00h
+returnblock3:
+		mov eax, HBlock3
 		ret
-yellowcolor:
-		mov eax, 00FFFFh
+returnblock4:
+		mov eax, HBlock4
 		ret
-bluecolor:
-		mov eax, 0ff8000h
+returnblock5:
+		mov eax, HBlock5
 		ret
-greencolor:
-		mov eax, 00FF00h
-		ret
-redcolor:
-		mov eax, 0000FFh
-		ret
-pinkcolor:
-		mov eax, 0FF66FFh
-		ret
-limegreencolor:
-		mov eax, 0FF00BCh  ;BC00FF PURPLE
+returnblock6:
+		mov eax, HBlock6
 		ret
 GetColor ENDP
  
@@ -255,6 +254,70 @@ BUILDRECT ENDP
  
  
  
+DrawImage PROC, hdc:HDC, img:HBITMAP, x:DWORD, y:DWORD
+local hdcMem:HDC
+local HOld:HDC
+		invoke CreateCompatibleDC, hdc
+		mov hdcMem, eax
+		invoke SelectObject, hdcMem, img
+		mov HOld, eax
+		invoke BitBlt,hdc,x,y,RealWindowWidth,WindowHeight,hdcMem,0,0,SRCCOPY
+		invoke DeleteObject, HOld
+		invoke DeleteDC,hdcMem
+		ret
+DrawImage ENDP
+ 
+DrawImage_WithStretch PROC, hdc:HDC, img:HBITMAP, x:DWORD, y:DWORD,x2:DWORD,y2:DWORD,w:DWORD,h:DWORD,wstrech:DWORD,hstrech:DWORD
+		;--------------------------------------------------------------------------------
+local hdcMem:HDC
+local HOld:HBITMAP
+		invoke CreateCompatibleDC, hdc
+		mov hdcMem, eax
+		invoke SelectObject, hdcMem, img
+		mov HOld, eax
+		invoke SetStretchBltMode,hdc,COLORONCOLOR
+		invoke StretchBlt ,hdc,x,y,wstrech,hstrech,hdcMem,x2,y2,w,h,SRCCOPY
+		invoke SelectObject,hdcMem,HOld
+		invoke DeleteDC,hdcMem 
+		invoke DeleteObject,HOld
+		;================================================================================
+		ret
+DrawImage_WithStretch ENDP
+ 
+DrawImage_WithMask PROC, hdc:HDC, img:HBITMAP, maskedimg:HBITMAP,  x:DWORD, y:DWORD
+local hdcMem:HDC
+local HOld:HDC
+		invoke CreateCompatibleDC, hdc
+		mov hdcMem, eax
+		invoke SelectObject, hdcMem, maskedimg
+		mov HOld, eax
+		invoke BitBlt,hdc,x,y,RealWindowWidth,WindowHeight,hdcMem,0,0,SRCAND
+               
+		invoke SelectObject, hdcMem, img
+		invoke BitBlt,hdc,x,y,RealWindowWidth,WindowHeight,hdcMem,0,0,SRCPAINT
+		invoke DeleteObject, HOld
+		invoke DeleteDC,hdcMem
+		ret
+DrawImage_WithMask ENDP
+ 
+DrawImage_WithMask_WithResize PROC, hdc:HDC, img:HBITMAP, maskedimg:HBITMAP,  x:DWORD, y:DWORD,w:DWORD,h:DWORD,x2:DWORD,y2:DWORD,wstrech:DWORD,hstrech:DWORD
+		;--------------------------------------------------------------------------------
+local hdcMem:HDC
+local HOld:HDC
+		invoke CreateCompatibleDC, hdc
+		mov hdcMem, eax
+		invoke SelectObject, hdcMem, maskedimg
+		invoke SetStretchBltMode,hdc,COLORONCOLOR
+		invoke StretchBlt ,hdc,x,y,wstrech,hstrech,hdcMem,x2,y2,w,h,SRCAND
+		
+		invoke SelectObject, hdcMem, img
+		invoke StretchBlt ,hdc,x,y,wstrech,hstrech,hdcMem,x2,y2,w,h,SRCPAINT
+
+		invoke DeleteDC,hdcMem 
+		;================================================================================
+		ret
+DrawImage_WithMask_WithResize ENDP
+ 
 ReadGrid PROC, XIndex:DWORD, YIndex:DWORD
 		;Returns grid[XIndex][YIndex]
 		mov ebx, offset grid
@@ -269,6 +332,13 @@ ReadGrid PROC, XIndex:DWORD, YIndex:DWORD
 		add ebx, XIndex
 		xor eax, eax
 		mov al, BYTE ptr [ebx]
+
+		cmp al, 7
+		jl donotbreakpoint
+
+		mov al, al
+		donotbreakpoint:
+
 		ret
 ReadGrid ENDP
  
@@ -407,6 +477,7 @@ Close ENDP
  
 DrawGrid PROC, hdc:HDC
 local brush:HBRUSH
+local Hbmp:HBITMAP
  
 		;Draws all the blocks on the grid
  
@@ -426,18 +497,13 @@ loop01:
 		cmp al, 00FFh
 		je skipdrawpopa
 		invoke GetColor, al
-		pusha
-		invoke GetStockObject,  DC_BRUSH
-		mov brush, eax
-		invoke SelectObject, hdc, brush
-		popa
-		invoke SetDCBrushColor, hdc, eax
-		mov brush, eax         
+		mov Hbmp, eax
  
 		popa
 		imul ebx, BLOCK_SIZE
 		imul edx, BLOCK_SIZE
-		invoke BUILDRECT, ebx, edx, BLOCK_SIZE-1, BLOCK_SIZE-1, hdc, brush
+		;invoke BUILDRECT, ebx, edx, BLOCK_SIZE-1, BLOCK_SIZE-1, hdc, brush
+		invoke DrawImage, hdc, Hbmp, ebx, edx
 		jmp skipdraw
 skipdrawpopa:
 		popa
@@ -455,7 +521,7 @@ DrawGrid ENDP
  
 DrawSideBarGrid PROC, hdc:HDC, x:DWORD, w:DWORD
 local brush:HBRUSH
- 
+local Hbmp:HDC
 		;Draws all the blocks on the grid
  
 		mov ebx, 0
@@ -476,19 +542,14 @@ loop01:
 		cmp al, 00FFh
 		je skipdraw
 		invoke GetColor, al
-		pusha
-		invoke GetStockObject,  DC_BRUSH
-		mov brush, eax
-		invoke SelectObject, hdc, brush
-		popa
-		invoke SetDCBrushColor, hdc, eax
-		mov brush, eax         
+		mov Hbmp, eax    
  
 		popa
 		imul ebx, BLOCK_SIZE
 		imul edx, BLOCK_SIZE
 		add ebx, x
-		invoke BUILDRECT, ebx, edx, BLOCK_SIZE, BLOCK_SIZE, hdc, brush
+		invoke DrawImage, hdc, Hbmp, ebx, edx
+
                            
 skipdraw:
 		popa
@@ -518,6 +579,12 @@ SetSideBarGrid ENDP
  
 SetGrid PROC, XIndex:DWORD, YIndex:DWORD, data:BYTE
 		;Puts data into grid[XIndex][YIndex]
+		cmp data, 7
+		jl skipnobreakpoint
+
+		mov al, data
+
+		skipnobreakpoint:
 		mov ebx, offset grid
 		xor edx, edx
 		mov eax, WindowWidth
@@ -590,7 +657,6 @@ BuildBlock         PROC,   x:DWORD,             y:DWORD, blocktype:DWORD,       
 		je block5
 		cmp blocktype, 6
 		je block6
- 
 block0:
 		cmp blockmode, 0
 		je block00
@@ -2478,7 +2544,7 @@ GetRandomBlock PROC
 		invoke GetRandomNumber, 4, offset randombuffer
 		mov eax, randombuffer
 		xor dx, dx
-		mov bx, 8
+		mov bx, 7
 		div bx
 		mov CurrentColor, dl
 		ret
@@ -2486,6 +2552,7 @@ GetRandomBlock PROC
 
 		mov eax, BlockType
 		mov CurrentColor, al
+		
 
 		ret
 GetRandomBlock ENDP
@@ -2571,17 +2638,24 @@ generate:
 		pusha
 		invoke GetRandomNumber, 4, offset randombuffer
 		mov eax, randombuffer
-		xor dx, dx
-		mov bx, 10
-		div bx
-		mov CurrentColor, dl
-		invoke GetRandomNumber, 4, offset randombuffer
-		mov eax, randombuffer
 		xor edx, edx
 		mov bx, 7
 		div bx
 		mov BlockType, edx
- 
+		cmp randomColor, 0
+		je skipgetrandomcolor
+		invoke GetRandomNumber, 4, offset randombuffer
+		mov eax, randombuffer
+		xor dx, dx
+		mov bx, 7
+		div bx
+		mov CurrentColor, dl
+		jmp skipskipgetrandomcolor
+		skipgetrandomcolor:
+		mov eax, BlockType
+		mov CurrentColor, al
+
+		skipskipgetrandomcolor:
 		popa
  
 		mov eax, BlockType
@@ -2620,70 +2694,6 @@ nextblock:
 DrawNext2Blocks ENDP
  
  
- 
-DrawImage PROC, hdc:HDC, img:HBITMAP, x:DWORD, y:DWORD
-local hdcMem:HDC
-local HOld:HBITMAP
-		invoke CreateCompatibleDC, hdc
-		mov hdcMem, eax
-		invoke SelectObject, hdcMem, img
-		mov HOld, eax
-		invoke BitBlt,hdc,x,y,RealWindowWidth,WindowHeight,hdcMem,0,0,SRCCOPY
-		invoke SelectObject,hdcMem,HOld
-		invoke DeleteDC,hdcMem
-		ret
-DrawImage ENDP
- 
-DrawImage_WithStretch PROC, hdc:HDC, img:HBITMAP, x:DWORD, y:DWORD,x2:DWORD,y2:DWORD,w:DWORD,h:DWORD,wstrech:DWORD,hstrech:DWORD
-		;--------------------------------------------------------------------------------
-local hdcMem:HDC
-local HOld:HBITMAP
-		invoke CreateCompatibleDC, hdc
-		mov hdcMem, eax
-		invoke SelectObject, hdcMem, img
-		mov HOld, eax
-		invoke SetStretchBltMode,hdc,COLORONCOLOR
-		invoke StretchBlt ,hdc,x,y,wstrech,hstrech,hdcMem,x2,y2,w,h,SRCCOPY
-		invoke SelectObject,hdcMem,HOld
-		invoke DeleteDC,hdcMem 
-		invoke DeleteObject,HOld
-		;================================================================================
-		ret
-DrawImage_WithStretch ENDP
- 
-DrawImage_WithMask PROC, hdc:HDC, img:HBITMAP, maskedimg:HBITMAP,  x:DWORD, y:DWORD
-local hdcMem:HDC
-local HOld:HDC
-		invoke CreateCompatibleDC, hdc
-		mov hdcMem, eax
-		invoke SelectObject, hdcMem, maskedimg
-		mov HOld, eax
-		invoke BitBlt,hdc,x,y,RealWindowWidth,WindowHeight,hdcMem,0,0,SRCAND
-               
-		invoke SelectObject, hdcMem, img
-		invoke BitBlt,hdc,x,y,RealWindowWidth,WindowHeight,hdcMem,0,0,SRCPAINT
-		invoke DeleteObject, HOld
-		invoke DeleteDC,hdcMem
-		ret
-DrawImage_WithMask ENDP
- 
-DrawImage_WithMask_WithResize PROC, hdc:HDC, img:HBITMAP, maskedimg:HBITMAP,  x:DWORD, y:DWORD,w:DWORD,h:DWORD,x2:DWORD,y2:DWORD,wstrech:DWORD,hstrech:DWORD
-		;--------------------------------------------------------------------------------
-local hdcMem:HDC
-local HOld:HDC
-		invoke CreateCompatibleDC, hdc
-		mov hdcMem, eax
-		invoke SelectObject, hdcMem, maskedimg
-		invoke SetStretchBltMode,hdc,COLORONCOLOR
-		invoke StretchBlt ,hdc,x,y,wstrech,hstrech,hdcMem,x2,y2,w,h,SRCAND
-		
-		invoke SelectObject, hdcMem, img
-		invoke StretchBlt ,hdc,x,y,wstrech,hstrech,hdcMem,x2,y2,w,h,SRCPAINT
-
-		invoke DeleteDC,hdcMem 
-		;================================================================================
-		ret
-DrawImage_WithMask_WithResize ENDP
  
 DrawMainMenuButtons PROC, hdc:HDC, highlightedbutton:BYTE
  
@@ -2954,11 +2964,16 @@ DrawNumber ENDP
  
  
  About PROC
-  
-		mov aboutpage, 1
+		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
+
+		
 		mov startscreen, 0
+		cmp aboutpage, 1
+		je checkbuttons
+		mov aboutpage, 1
+		ret
                            
- 
+		checkbuttons:
 		invoke GetAsyncKeyState, VK_ESCAPE
 		cmp eax, 0
 		jne endabout
@@ -2981,7 +2996,8 @@ endabout:
 
 
  Options PROC
-      
+      	invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
+
 		mov optionscreenstate, 1
 		invoke GetAsyncKeyState, VK_UP
 		cmp eax, 0
@@ -3044,6 +3060,11 @@ endoperations:
 		je endcheck
 		;mov startscreen, 1
 		mov optionscreenstate, 0
+		invoke GetAsyncKeyState, VK_UP
+		invoke GetAsyncKeyState, VK_DOWN
+		invoke GetAsyncKeyState, VK_RETURN
+		invoke GetAsyncKeyState, VK_ESCAPE
+
 		invoke Sleep, 10
 endcheck:
 		ret
@@ -3052,8 +3073,9 @@ endcheck:
 
 
  NewGame PROC
+		
+ 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_GAME, NULL
 
- 
 		invoke ClearGrid
 		invoke ClearSideBarGrid
 		invoke PlaySound, offset soundpath, NULL, SND_LOOP + SND_ASYNC
@@ -3078,23 +3100,33 @@ endcheck:
 		mov BlockMode, 0
 		invoke GetRandomNumber, 4, offset randombuffer
 		mov eax, randombuffer
-		xor dx, dx
-		mov bx, 10
-		div bx
-		mov CurrentColor, dl
-		invoke GetRandomNumber, 4, offset randombuffer
-		mov eax, randombuffer
 		xor edx, edx
 		mov bx, 7
 		div bx
 		mov BlockType, edx
+
+		cmp randomColor, 0
+		je skipgetrandomcolor
+
+		invoke GetRandomNumber, 4, offset randombuffer
+		mov eax, randombuffer
+		xor dx, dx
+		mov bx, 10
+		div bx
+		mov CurrentColor, dl
+		
 		ret
 
+		skipgetrandomcolor:
+		mov eax, BlockType
+		mov CurrentColor, al
 
+		ret
  NewGame ENDP
 
 
  MainMenu PROC
+       	invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
 
  invoke GetAsyncKeyState, VK_DOWN
 		invoke GetAsyncKeyState, VK_UP
@@ -3107,17 +3139,18 @@ endcheck:
 
  
  GetInputFromKeyboard PROC
+		cmp optionscreenstate, 1
+		je options
 		cmp startscreen, 1
 		je startscreenprocedure		
 		cmp youlosestate, 1
-		je youloseprocedure
-		cmp optionscreenstate, 1
-		je options
+		je youloseprocedure		
 		cmp PauseState, 1
 		je pauseprocedure
-        
+        cmp aboutpage, 1
+		je about
 
-
+		;~~~~~~~~~~~ pause procedure
 		invoke GetAsyncKeyState, VK_ESCAPE
 		cmp eax, 0
 		je skippause1
@@ -3147,6 +3180,10 @@ checkleftbutton:
 		je checkupbutton
 		inc BlockX
 checkupbutton:
+		inc timesDidntCheckUp
+		cmp timesDidntCheckUp, 2
+		jl checkdownbutton
+		mov timesDidntCheckUp, 0
 		invoke GetAsyncKeyState, VK_UP
 		cmp eax, 0
 		je checkdownbutton
@@ -3238,6 +3275,7 @@ aftercheckup:
 	mainmenu:
 	invoke MainMenu
 	ret
+
 
 		;~~~~~~~~~~~~~~~~~~~~~~~~ START YOULOSE PROCEDURE
 
@@ -3333,7 +3371,11 @@ endoffunc:
 
 
 Update PROC
-  
+		cmp CurrentColor, 7
+		jl skipbreakpoint
+
+		mov al, al
+		skipbreakpoint:
 		
 		cmp youlosestate, 1
 		je endupdate
@@ -3545,36 +3587,74 @@ createblocks:
 		invoke Get_Handle_To_Mask_Bitmap, HChangeTheme, 00ffffffh
 		mov HChangeThemeMask, eax
  
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1337
+		mov HBlock0,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1338
+		mov HBlock1,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1339
+		mov HBlock2,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1340
+		mov HBlock3,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1341
+		mov HBlock4,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1342
+		mov HBlock5,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1343
+		mov HBlock6,eax
  
  
 		mov BlockMode, 0
-		invoke GetRandomNumber, 4, offset randombuffer
-		mov eax, randombuffer
-		xor dx, dx
-		mov bx, 10
-		div bx
-		mov CurrentColor, dl
+
 		invoke GetRandomNumber, 4, offset randombuffer
 		mov eax, randombuffer
 		xor edx, edx
 		mov bx, 7
 		div bx
 		mov BlockType, edx
+		cmp randomColor, 0
+		je skipgetrandomcolor
+
+		invoke GetRandomNumber, 4, offset randombuffer
+		mov eax, randombuffer
+		xor dx, dx
+		mov bx, 10
+		div bx
+		mov CurrentColor, dl
+		jmp endcreate
+
+		skipgetrandomcolor:
+		mov eax, BlockType
+		mov CurrentColor, al
+
  
- 
+		endcreate:
  
 		ret
 Create ENDP
  
  
-Paint PROC, hWnd:HWND, message:UINT, wParam:WPARAM, lParam:LPARAM
+Paint PROC, hWnd1:HWND, message:UINT, wParam:WPARAM, lParam:LPARAM
 local paint:PAINTSTRUCT
 local hdc:HDC
 local hdcMem:HDC
 local hOld:HBITMAP
 local hbmMem:HBITMAP
 local brushcolouring:HBRUSH
- 
+		mov eax, hWnd1
+		mov hWnd, eax
 		cmp youlosestate, 1
 		je youlosescreen
  
@@ -3705,25 +3785,21 @@ afterthemes:
 		invoke EndPaint, hWnd,  addr paint     
 		ret
  
-
- 
- 
- 
-		ret
 Paint ENDP
  
  
  
  
  
-ProjectWndProc  PROC,   hWnd:HWND, message:UINT, wParam:WPARAM, lParam:LPARAM
+ProjectWndProc  PROC,   hWnd1:HWND, message:UINT, wParam:WPARAM, lParam:LPARAM
 local paint:PAINTSTRUCT
 local hdc:HDC
 local hdcMem:HDC
 local hOld:HBITMAP
 local hbmMem:HBITMAP
 local brushcolouring:HBRUSH
- 
+		mov eax, hWnd1
+		mov hWnd, eax
 		cmp      message,               WM_PAINT
 		je        painting
 		cmp message,    WM_TIMER
@@ -3784,7 +3860,6 @@ ProjectWndProc  ENDP
 main PROC
  
 LOCAL wndcls:WNDCLASSA ; Class struct for the window
-LOCAL hWnd:HWND ;Handle to the window
 LOCAL msg:MSG
  
 		invoke RtlZeroMemory, addr wndcls, SIZEOF wndcls ;Empty the window class
@@ -3806,7 +3881,7 @@ LOCAL msg:MSG
 		invoke ShowWindow, eax, SW_SHOW ;Show it
 		invoke SetTimer, hWnd, MAIN_TIMER_ID, 25, NULL ;Set the repaint timer
 		invoke SetTimer, hWnd, TM_UPDATE, INITIAL_UPDATE_TIMER , NULL
-		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, 100, NULL
+		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
 
                            
  
@@ -3824,8 +3899,5 @@ msgLoop:
 		ret
 main ENDP
  
- 
-;main PROC
-;main ENDP
  
 		end main
