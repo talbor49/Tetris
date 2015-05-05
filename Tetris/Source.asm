@@ -63,15 +63,20 @@ Todo list:
 		TM_UPDATE equ 1337
 		TM_GET_INPUT_FROM_KEYBOARD equ 1336
 		INITIAL_UPDATE_TIMER equ 750
-		INPUT_FROM_KEYBOARD_DELAY_IN_MENUS equ 200
+		INPUT_FROM_KEYBOARD_DELAY_IN_MENUS equ 150
 		INPUT_FROM_KEYBOARD_DELAY_IN_GAME equ 100
+		INPUT_FROM_KEYBOARD_DELAY_IN_OPTIONS equ 20
 .data
-
-		instructions1 db "Use the left and right buttons to move ",0
-		instructions2 db "the block.", "Up button rotates block clockwise and down rotates anti-clockwise", 10, "Spacebar moves the block down faster, a double-click on it will instantly place it.",0
+		framesPassedSinceLastChangedButton DWORD 0
+		framesPassedSinceLastEnteredPause DWORD 0
+		timeLastPutDown DWORD 0
+		instructions0 db "Game Controls", 0
+		instructions1 db "Right or Left buttons   - move block.",0
+		instructions2 db "Up button   - rotate block.", 0
+		instructions3 db "Down button  - move the block down faster.", 0 
+		instructions4 db "Spacebar - instantly place block.",0
 		hWnd HWND ?
 		BitmapsBodyGuard1 db 10000 dup(0)
-		created DWORD 0
 		randomColor db 0
 		timesDidntCheckUp DWORD 0
 		marginBetweenButtons DWORD ?
@@ -80,6 +85,7 @@ Todo list:
 		WindowHeight DWORD 800
 		eaxbackup DWORD ?
 		ANIMATE_CLASSA  db "SysAnimate32",0
+		TimesNewRoman db "Times New Roman", 0
 		HPauseScreen HBITMAP ?
 		HAboutPage HBITMAP ?
 		HStartScreen HBITMAP ?
@@ -131,15 +137,17 @@ Todo list:
 		HBlock6 HBITMAP ?
 
 		BitmapsBodyGuard2 db 10000 dup(0)
-		myfont HFONT ?
+		scoreFont HFONT ?
+		titleFont HFONT ?
 		theme DWORD WHITE_THEME
 		AnimateHWnd HWND ?
 		offsetinstring DWORD 0
 		score DWORD 0
 		scorestring db "000000"
 		volume DWORD 00ff00ffh
-		CircleX DWORD 92
+		CircleX DWORD 400
 		soundpath db "tetrissound.wav",0
+		bloppath db "blop.wav", 0
 		FramesPassedSinceLastArrowClick DWORD 30
 		highlighted db 0
 		highlightedoptionsscreen db 0
@@ -2543,7 +2551,7 @@ GetRandomBlock PROC
 		mov edi, 2
 		idiv edi
 		mov BlockX, eax
-		mov BlockY, -2
+		mov BlockY, -1
 		mov BlockMode, 0
 		invoke GetRandomNumber, 4, offset randombuffer
 		mov eax, randombuffer
@@ -2592,6 +2600,7 @@ ClearSideBarGrid ENDP
  
 ChangeBlock PROC
 		
+
 		invoke ClearSideBarGrid
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,CurrentColor
 		mov esi, offset next2blocks
@@ -2638,7 +2647,9 @@ ChangeBlock PROC
 		mov youlosestate, 1                    
 		invoke GetAsyncKeyState, VK_DOWN
 endfunc:
+
 		invoke ClearFullLines
+
 		ret
 ChangeBlock ENDP
  
@@ -2965,7 +2976,7 @@ itoa ENDP
 DrawNumber PROC, hdc:HDC, num:DWORD, x:DWORD, y:DWORD
 		invoke itoa, num, offset scorestring
 		push eax		
-		invoke SelectObject, hdc, myfont
+		invoke SelectObject, hdc, scoreFont
 		pop eax
 		invoke TextOut, hdc, x,y, offset scorestring, eax
  
@@ -3007,9 +3018,16 @@ endabout:
 
 
  Options PROC
-      	invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
+		inc framesPassedSinceLastEnteredPause
+		inc framesPassedSinceLastChangedButton
+      	invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_OPTIONS, NULL
 
 		mov optionscreenstate, 1
+
+
+		cmp framesPassedSinceLastEnteredPause, 10
+		jl dooperation
+		mov framesPassedSinceLastEnteredPause, 0
 		invoke GetAsyncKeyState, VK_UP
 		cmp eax, 0
 		je checkdown4
@@ -3023,7 +3041,12 @@ checkdown4:
 dooperation:
 		cmp highlightedoptionsscreen , 0
 		je volumechangeoperation
- 
+
+		cmp framesPassedSinceLastChangedButton, 10
+		jl endoperations
+		mov framesPassedSinceLastChangedButton, 0
+
+
 		;theme change operation		
 		invoke GetAsyncKeyState, VK_RIGHT
 		cmp eax, 0
@@ -3045,7 +3068,7 @@ volumechangeoperation:
 		je skipright
 		cmp CircleX, 600
 		jnl skipright
-		add CircleX, 30
+		add CircleX, 7
 		jmp skipleft
 skipright:
 		invoke GetAsyncKeyState, VK_LEFT
@@ -3053,7 +3076,7 @@ skipright:
 		je skipleft
 		cmp CircleX, 50
 		jng skipleft
-		sub CircleX, 30
+		sub CircleX, 7
 skipleft:
 		mov eax, CircleX
 		sub eax, 50
@@ -3084,7 +3107,17 @@ endcheck:
 
 
  NewGame PROC
-		
+
+		mov eax, CircleX
+		sub eax, 50
+		imul eax, 118
+		push ax
+		rol eax, 16
+		pop ax
+		rol eax, 16
+		mov volume, eax
+		invoke waveOutSetVolume, NULL, volume
+
  		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_GAME, NULL
 
 		invoke ClearGrid
@@ -3107,7 +3140,7 @@ endcheck:
 		idiv ebx
  
 		mov BlockX, eax
-		mov BlockY, -2
+		mov BlockY, -1
 		mov BlockMode, 0
 		invoke GetRandomNumber, 4, offset randombuffer
 		mov eax, randombuffer
@@ -3169,7 +3202,7 @@ endcheck:
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, 350, NULL
 		invoke PlaySound, NULL, NULL, NULL
 		ret
-
+		;~~~~~~~~~~~ end pause procedure
 
 		skippause1:
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,0ffh
@@ -3220,7 +3253,7 @@ put3blockmode:
 checkdownbutton:
 		invoke GetAsyncKeyState, VK_DOWN
 		cmp eax, 0
-		je skipmoving
+		je checkspace
 		inc BlockY
 		inc score
 		invoke CheckIfCanGo, BlockX, BlockY, BlockType, BlockMode
@@ -3228,6 +3261,34 @@ checkdownbutton:
 		je skipmoving
 		dec BlockY		
 		invoke ChangeBlock
+checkspace:
+		invoke GetAsyncKeyState, VK_SPACE
+		shr eax, 31
+		cmp eax, 0
+		je skipmoving
+		
+		
+		;Check if 1 second passed since last space click
+		invoke GetTickCount
+		
+		sub eax, timeLastPutDown
+		cmp eax, 1000
+		jl skipmoving
+
+		invoke GetTickCount
+		mov timeLastPutDown, eax
+putblockdown:
+		inc BlockY
+		add score, 3
+		invoke CheckIfCanGo, BlockX, BlockY, BlockType, BlockMode
+		cmp eax, 0
+		je stopputdown
+		jmp putblockdown
+
+stopputdown:
+		dec BlockY
+		
+
 skipmoving:
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,CurrentColor
 		ret
@@ -3428,7 +3489,6 @@ Update ENDP
  
 Create PROC
  
-		mov created, 1
 
 		mov startscreen, 1
 		mov ebx, offset next2blocks
@@ -3449,9 +3509,15 @@ createblocks:
 		invoke waveOutSetVolume, NULL, volume
 
  
-		invoke CreateFont,80,23,0,0,FW_DONTCARE,FALSE,FALSE,FALSE,ANSI_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,ANTIALIASED_QUALITY,DEFAULT_PITCH,NULL
-		mov myfont, eax
+		;invoke CreateFont,80,23,0,0,FW_DONTCARE,FALSE,FALSE,FALSE,ANSI_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,ANTIALIASED_QUALITY,DEFAULT_PITCH,NULL
+		invoke CreateFont, 80, 23, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, OUT_OUTLINE_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, FF_MODERN, offset TimesNewRoman
+		mov scoreFont, eax
  
+
+		;invoke CreateFont, 30,15, 0,0, FW_BOLD, TRUE,TRUE,FALSE,ANSI_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,DEFAULT_PITCH OR FF_DONTCARE, NULL
+		invoke CreateFont, 45, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, OUT_OUTLINE_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, FF_MODERN, offset TimesNewRoman
+		mov titleFont, eax
+
 		invoke GetModuleHandle,NULL
 		invoke LoadBitmap,eax,101
 		mov HPauseScreen,eax
@@ -3777,9 +3843,22 @@ drawgame:
 		invoke DrawNext2Blocks
 		invoke DrawSideBarGrid, hdcMem, 400, 300
 
-		
-		invoke crt_strlen, offset instructions
-		invoke TextOut, hdcMem, 425, 600, offset instructions, eax
+
+		invoke crt_strlen, offset instructions1
+		invoke TextOut, hdcMem, 410, 650, offset instructions1, eax
+		invoke crt_strlen, offset instructions2
+		invoke TextOut, hdcMem, 410, 670, offset instructions2, eax
+		invoke crt_strlen, offset instructions3
+		invoke TextOut, hdcMem, 410, 690, offset instructions3, eax
+		invoke crt_strlen, offset instructions4
+		invoke TextOut, hdcMem, 410, 710, offset instructions4, eax
+
+
+		invoke SelectObject, hdcMem, titleFont
+		invoke crt_strlen, offset instructions0
+		invoke TextOut, hdcMem, 410, 600, offset instructions0, eax
+
+
 
 		invoke DrawImage_WithMask, hdcMem, HScore, HScoreMask, 400, 0
 		invoke DrawNumber, hdcMem, score, 400,56
@@ -3794,8 +3873,21 @@ blacktheme:
 		invoke DrawNumber, hdcMem, score, 400,56
 
 		
-		invoke crt_strlen, offset instructions
-		invoke TextOut, hdcMem, 425, 600, offset instructions, eax
+
+		invoke crt_strlen, offset instructions1
+		invoke TextOut, hdcMem, 410, 650, offset instructions1, eax
+		invoke crt_strlen, offset instructions2
+		invoke TextOut, hdcMem, 410, 670, offset instructions2, eax
+		invoke crt_strlen, offset instructions3
+		invoke TextOut, hdcMem, 410, 690, offset instructions3, eax
+		invoke crt_strlen, offset instructions4
+		invoke TextOut, hdcMem, 410, 710, offset instructions4, eax
+
+
+		invoke SelectObject, hdcMem, titleFont
+		invoke crt_strlen, offset instructions0
+		invoke TextOut, hdcMem, 410, 600, offset instructions0, eax
+
 
 		invoke DrawImage_WithMask, hdcMem, HScore, HScoreMask, 400, 0
 		invoke DrawNumber, hdcMem, score, 400,56
@@ -3829,12 +3921,7 @@ local brushcolouring:HBRUSH
 		mov eax, hWnd1
 		mov hWnd, eax
 
-		cmp created, 1
-		jne skipcheckfocus
-		
-		invoke GetFocus
-		cmp hWnd, eax
-		jne pausewndproc
+
 		
 		skipcheckfocus: 
 
