@@ -62,7 +62,7 @@ Todo list:
 		TM_UPDATE equ 1337
 		TM_GET_INPUT_FROM_KEYBOARD equ 1336
 		INITIAL_UPDATE_TIMER equ 750
-		INPUT_FROM_KEYBOARD_DELAY_IN_MENUS equ 100
+		INPUT_FROM_KEYBOARD_DELAY_IN_MENUS equ 50
 		INPUT_FROM_KEYBOARD_DELAY_IN_GAME equ 100
 .data
 		hWnd HWND ?
@@ -127,7 +127,7 @@ Todo list:
 		HBlock6 HBITMAP ?
 
 		BitmapsBodyGuard2 db 10000 dup(0)
-
+		myfont HFONT ?
 		theme DWORD WHITE_THEME
 		AnimateHWnd HWND ?
 		offsetinstring DWORD 0
@@ -2678,7 +2678,7 @@ local color:BYTE
 		mov esi, 3
 		mov edi, 4
 		mov ebx, offset next2blocks
-		mov ecx, 3
+		mov ecx, 2
 nextblock:
 		mov eax, DWORD ptr [ebx]
 		mov btype, eax
@@ -2689,7 +2689,7 @@ nextblock:
 		pusha
 		invoke BuildSideBarBlock, esi,edi,btype,0,color
 		popa
-		add edi, 5
+		add edi, 7
 		loop nextblock
 		ret
 DrawNext2Blocks ENDP
@@ -2953,9 +2953,8 @@ itoa ENDP
  
 DrawNumber PROC, hdc:HDC, num:DWORD, x:DWORD, y:DWORD
 		invoke itoa, num, offset scorestring
-		push eax
-		invoke CreateFont,80,23,0,0,FW_DONTCARE,FALSE,FALSE,FALSE,ANSI_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,ANTIALIASED_QUALITY,DEFAULT_PITCH,NULL
-		invoke SelectObject, hdc, eax
+		push eax		
+		invoke SelectObject, hdc, myfont
 		pop eax
 		invoke TextOut, hdc, x,y, offset scorestring, eax
  
@@ -3035,7 +3034,7 @@ volumechangeoperation:
 		je skipright
 		cmp CircleX, 600
 		jnl skipright
-		add CircleX, 7
+		add CircleX, 30
 		jmp skipleft
 skipright:
 		invoke GetAsyncKeyState, VK_LEFT
@@ -3043,7 +3042,7 @@ skipright:
 		je skipleft
 		cmp CircleX, 50
 		jng skipleft
-		sub CircleX, 7
+		sub CircleX, 30
 skipleft:
 		mov eax, CircleX
 		sub eax, 50
@@ -3156,6 +3155,8 @@ endcheck:
 		cmp eax, 0
 		je skippause1
 		inc PauseState
+		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, 350, NULL
+		invoke PlaySound, NULL, NULL, NULL
 		ret
 
 
@@ -3311,6 +3312,7 @@ resume:
 		invoke PlaySound, offset soundpath, NULL, SND_LOOP + SND_ASYNC 
 		mov highlighted, 0
 		mov PauseState, 0
+		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_GAME, NULL
 		ret
 
 		;~~~~~~~~~~~~~~~~~~~~~~~ PAUSE PROCEDURE
@@ -3416,6 +3418,7 @@ Update ENDP
 Create PROC
  
  
+
 		mov startscreen, 1
 		mov ebx, offset next2blocks
 		mov ecx, 2
@@ -3431,7 +3434,12 @@ createblocks:
 		inc ebx
 		loop createblocks
  
+		
+		invoke waveOutSetVolume, NULL, volume
+
  
+		invoke CreateFont,80,23,0,0,FW_DONTCARE,FALSE,FALSE,FALSE,ANSI_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,ANTIALIASED_QUALITY,DEFAULT_PITCH,NULL
+		mov myfont, eax
  
 		invoke GetModuleHandle,NULL
 		invoke LoadBitmap,eax,101
@@ -3747,6 +3755,7 @@ drawgame:
  
 		invoke CreateCompatibleDC, hdc
 		mov hdcMem, eax
+		invoke SetBkMode, hdcMem, TRANSPARENT
 		invoke CreateCompatibleBitmap, hdc, RealWindowWidth, WindowHeight
 		mov hbmMem, eax
  
