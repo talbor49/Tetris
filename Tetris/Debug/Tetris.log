@@ -1,28 +1,9 @@
-﻿Build started 5/4/2015 11:45:23 PM.
+﻿Build started 5/5/2015 1:34:56 PM.
      1>Project "C:\Users\Tal\Downloads\Tetris\Tetris\Tetris.vcxproj" on node 2 (Build target(s)).
-     1>_MASM:
-         Assembling Source.asm...
-         cmd.exe /C "C:\Users\Tal\AppData\Local\Temp\tmp4dbfe35b5a9f4c2985cc77722c25ae8a.cmd"
-         ml.exe /c /nologo /Zi /Fo"Debug\Source.obj" /W3 /errorReport:prompt  /TaSource.asm
-     1>Source.asm(319): warning A6004: procedure argument or local not referenced : HOld
-     1>Source.asm(519): warning A6004: procedure argument or local not referenced : brush
-     1>Source.asm(562): warning A6004: procedure argument or local not referenced : brush
-     1>Source.asm(3797): warning A6004: procedure argument or local not referenced : message
-     1>Source.asm(3797): warning A6004: procedure argument or local not referenced : wParam
-     1>Source.asm(3797): warning A6004: procedure argument or local not referenced : lParam
-     1>Source.asm(3797): warning A6004: procedure argument or local not referenced : brushcolouring
-     1>Source.asm(3865): warning A6004: procedure argument or local not referenced : paint
-     1>Source.asm(3865): warning A6004: procedure argument or local not referenced : hdc
-     1>Source.asm(3865): warning A6004: procedure argument or local not referenced : hdcMem
-     1>Source.asm(3865): warning A6004: procedure argument or local not referenced : hOld
-     1>Source.asm(3865): warning A6004: procedure argument or local not referenced : hbmMem
-     1>Source.asm(3865): warning A6004: procedure argument or local not referenced : brushcolouring
-       Link:
-         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Tal\Downloads\Tetris\Debug\Tetris.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\Tal\Downloads\Tetris\Debug\Tetris.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Tal\Downloads\Tetris\Debug\Tetris.lib" /MACHINE:X86 Debug\Resource.res
-         Debug\Source.obj
+     1>Link:
          Tetris.vcxproj -> C:\Users\Tal\Downloads\Tetris\Debug\Tetris.exe
      1>Done Building Project "C:\Users\Tal\Downloads\Tetris\Tetris\Tetris.vcxproj" (Build target(s)).
 
 Build succeeded.
 
-Time Elapsed 00:00:00.92
+Time Elapsed 00:00:00.04
