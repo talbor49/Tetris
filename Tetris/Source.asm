@@ -46,7 +46,8 @@ Todo list:
 		12. Let you flip block even if you are near a wall
 		13. Fix resolution of blocks - maybe implement images instead of rectangles
 		14. Add multiplayer on same computer
-		15.Fix youlose
+		15. Fix youlose
+		16. Add an option to change music
 		@
  
  
@@ -3828,7 +3829,7 @@ painting:
 		pusha
 		invoke Paint, hWnd, message, wParam, lParam
 		popa
-		invoke GetTickCount 
+		invoke GetTickCount
 		sub eax, ebx
 
 		ret
