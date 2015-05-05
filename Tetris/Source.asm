@@ -12,6 +12,7 @@ option casemap :none                                      ; case sensitive
 		include \masm32\include\Advapi32.inc
 		;include \masm32\include\masm32rt.inc
 		include \masm32\include\winmm.inc
+		include \masm32\include\msvcrt.inc
 		includelib \masm32\lib\winmm.lib
  
  
@@ -62,12 +63,15 @@ Todo list:
 		TM_UPDATE equ 1337
 		TM_GET_INPUT_FROM_KEYBOARD equ 1336
 		INITIAL_UPDATE_TIMER equ 750
-		INPUT_FROM_KEYBOARD_DELAY_IN_MENUS equ 50
+		INPUT_FROM_KEYBOARD_DELAY_IN_MENUS equ 200
 		INPUT_FROM_KEYBOARD_DELAY_IN_GAME equ 100
 .data
+
+		instructions1 db "Use the left and right buttons to move ",0
+		instructions2 db "the block.", "Up button rotates block clockwise and down rotates anti-clockwise", 10, "Spacebar moves the block down faster, a double-click on it will instantly place it.",0
 		hWnd HWND ?
 		BitmapsBodyGuard1 db 10000 dup(0)
-		
+		created DWORD 0
 		randomColor db 0
 		timesDidntCheckUp DWORD 0
 		marginBetweenButtons DWORD ?
@@ -470,6 +474,13 @@ Close PROC
 		invoke DeleteObject, HChangeVolumeMask
 		invoke DeleteObject, HChangeTheme
 		invoke DeleteObject, HChangeThemeMask
+		invoke DeleteObject, HBlock0
+		invoke DeleteObject, HBlock1
+		invoke DeleteObject, HBlock2
+		invoke DeleteObject, HBlock3
+		invoke DeleteObject, HBlock4
+		invoke DeleteObject, HBlock5
+		invoke DeleteObject, HBlock6
  
 		invoke ExitProcess, 0
 		ret
@@ -3417,7 +3428,7 @@ Update ENDP
  
 Create PROC
  
- 
+		mov created, 1
 
 		mov startscreen, 1
 		mov ebx, offset next2blocks
@@ -3742,13 +3753,7 @@ paintpausepicture:
  
  
  
-drawgame:
-                                                           
-                                                         
- 
- 
- 
-                                                 
+drawgame:                                                 
                                                            
 		invoke  BeginPaint,      hWnd,   addr paint
 		mov hdc, eax
@@ -3761,6 +3766,8 @@ drawgame:
  
 		invoke SelectObject,hdcMem, hbmMem
 		mov hOld, eax
+ 
+
                                                                                                                            
 		cmp theme, BLACK_THEME
 		je blacktheme
@@ -3769,6 +3776,11 @@ drawgame:
 		invoke DrawGrid, hdcMem
 		invoke DrawNext2Blocks
 		invoke DrawSideBarGrid, hdcMem, 400, 300
+
+		
+		invoke crt_strlen, offset instructions
+		invoke TextOut, hdcMem, 425, 600, offset instructions, eax
+
 		invoke DrawImage_WithMask, hdcMem, HScore, HScoreMask, 400, 0
 		invoke DrawNumber, hdcMem, score, 400,56
 		jmp afterthemes
@@ -3781,12 +3793,18 @@ blacktheme:
 		invoke DrawImage_WithMask, hdcMem, HScore, HScoreMask, 400, 0
 		invoke DrawNumber, hdcMem, score, 400,56
 
+		
+		invoke crt_strlen, offset instructions
+		invoke TextOut, hdcMem, 425, 600, offset instructions, eax
+
 		invoke DrawImage_WithMask, hdcMem, HScore, HScoreMask, 400, 0
 		invoke DrawNumber, hdcMem, score, 400,56
 		invoke DrawGridLines, hdcMem
  
                                                            
 afterthemes:
+		
+
 		invoke BitBlt,hdc, 0, 0, RealWindowWidth, WindowHeight, hdcMem, 0, 0, SRCCOPY
                                                            
 		invoke SelectObject,hdcMem, hOld;
@@ -3810,6 +3828,16 @@ local hbmMem:HBITMAP
 local brushcolouring:HBRUSH
 		mov eax, hWnd1
 		mov hWnd, eax
+
+		cmp created, 1
+		jne skipcheckfocus
+		
+		invoke GetFocus
+		cmp hWnd, eax
+		jne pausewndproc
+		
+		skipcheckfocus: 
+
 		cmp      message,               WM_PAINT
 		je        painting
 		cmp message,    WM_TIMER
@@ -3824,6 +3852,10 @@ local brushcolouring:HBRUSH
            
 create:
 		invoke Create
+		ret
+
+pausewndproc:
+		mov PauseState, 1
 		ret
            
 closing:
