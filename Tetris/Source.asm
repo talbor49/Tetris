@@ -67,9 +67,14 @@ Todo list:
 		INPUT_FROM_KEYBOARD_DELAY_IN_GAME equ 100
 		INPUT_FROM_KEYBOARD_DELAY_IN_OPTIONS equ 20
 .data
+
+		difficulty_factor DWORD 100
+		minimumUpdateTimer DWORD 150
+		level DWORD 0
 		nextBlockType DWORD ?
 		nextBlockColor BYTE ?
 		upwasclickedlasttime DWORD 0
+		changedthemelasttime DWORD 0
 		framesPassedSinceLastChangedButton DWORD 0
 		framesPassedSinceLastEnteredPause DWORD 0
 		timeLastPutDown DWORD 0
@@ -152,15 +157,19 @@ Todo list:
 		theme DWORD BLACK_THEME
 		AnimateHWnd HWND ?
 		offsetinstring DWORD 0
+		created DWORD 0
 		score DWORD 0
 		scorestring db "000000"
 		volume DWORD 00ff00ffh
 		CircleX DWORD 200
+		playGameOverMusic db "play GameOver.mp3", 0
 		playBackgroundMusic db "play tetrissound.wav",0
 		freezeBackgroundMusic db "pause tetrissound.wav",0
 		resumeBackgroundMusic db "resume tetrissound.wav", 0
 		restartBackgroundMusic db "seek tetrissound.wav to start", 0
-		playblop db "play blop.wav", 0
+		playlevelup db "play levelup.wav",0
+		playblop db "play blop.mp3", 0
+		playwoosh db "play woosh.mp3",0
 		FramesPassedSinceLastArrowClick DWORD 30
 		highlighted db 0
 		highlightedoptionsscreen db 0
@@ -188,6 +197,7 @@ Todo list:
 		windowTitle      DB       "Tetris",0
  
 		startTime DWORD ?
+		clickedspacelasttime DWORD 0
  
 		.code
  
@@ -2670,7 +2680,8 @@ ChangeBlock PROC
 		invoke ReadGrid, ebx, edx
 		cmp al, 0ffh
 		je endfunc
-		mov youlosestate, 1                    
+		mov youlosestate, 1              
+		invoke mciSendString, offset playGameOverMusic, NULL, 0, NULL
 		invoke GetAsyncKeyState, VK_DOWN
 endfunc:
 
@@ -3082,7 +3093,7 @@ endabout:
 		mov optionscreenstate, 1
 
 
-		cmp framesPassedSinceLastEnteredPause, 10
+		cmp framesPassedSinceLastEnteredPause, 10        ;;;;;;;;;;;;;~~~~~~~~~~~~~~~~=============== FIX HERE TO ON CLICK CHANGE.
 		jl dooperation
 		mov framesPassedSinceLastEnteredPause, 0
 		invoke GetAsyncKeyState, VK_UP
@@ -3099,20 +3110,21 @@ dooperation:
 		cmp highlightedoptionsscreen , 0
 		je volumechangeoperation
 
-		cmp framesPassedSinceLastChangedButton, 10
-		jl endoperations
-		mov framesPassedSinceLastChangedButton, 0
 
-
-		;theme change operation		
+		;theme change operation	
 		invoke GetAsyncKeyState, VK_RIGHT
 		cmp eax, 0
 		jne changetheme
 		invoke GetAsyncKeyState, VK_LEFT
 		cmp eax, 0
 		jne changetheme
+		mov changedthemelasttime, 0
 		jmp endoperations
 changetheme:
+		mov eax, changedthemelasttime
+		mov changedthemelasttime, 1
+		cmp eax, 1
+		je endoperations
 		xor theme, 1
 		jmp endoperations
  
@@ -3124,8 +3136,8 @@ volumechangeoperation:
 		cmp eax, 0
 		je skipright
 		cmp CircleX, 600
-		jnl skipright
-		add CircleX, 7
+		jnl skipleft
+		add CircleX, 10
 		jmp skipleft
 skipright:
 		invoke GetAsyncKeyState, VK_LEFT
@@ -3133,7 +3145,7 @@ skipright:
 		je skipleft
 		cmp CircleX, 50
 		jng skipleft
-		sub CircleX, 7
+		sub CircleX, 10
 skipleft:
 		mov eax, CircleX
 		sub eax, 43
@@ -3192,7 +3204,7 @@ endcheck:
 		mov startscreen, 0
 		mov youlosestate, 0
 		mov optionscreenstate, 0
-		mov score, 0
+		mov score, 30000
 		mov highlighted, 0
 		mov PauseState ,0
  
@@ -3305,10 +3317,13 @@ checkdownbutton:
 		je checkspace
 		dec BlockY		
 		invoke ChangeBlock
-checkspace:
+checkspace:		
 		invoke GetAsyncKeyState, VK_SPACE
-		shr eax, 31
 		cmp eax, 0
+		je skipmovingandputclicspacelasttime0
+		mov eax, clickedspacelasttime
+		mov clickedspacelasttime, 1
+		cmp eax, 1
 		je skipmoving
 		
 		
@@ -3321,6 +3336,9 @@ checkspace:
 
 		invoke GetTickCount
 		mov timeLastPutDown, eax
+		;invoke mciSendString, offset playwoosh, NULL, 0, NULL
+		invoke mciSendString, offset playwoosh, NULL, 0, NULL
+
 putblockdown:
 		inc BlockY
 		add score, 3
@@ -3331,8 +3349,10 @@ putblockdown:
 
 stopputdown:
 		dec BlockY
-		
+		jmp skipmoving
 
+skipmovingandputclicspacelasttime0:
+		mov clickedspacelasttime, 0
 skipmoving:
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,CurrentColor
 		ret
@@ -3398,6 +3418,7 @@ aftercheckup:
 		;~~~~~~~~~~~~~~~~~~~~~~~~ START YOULOSE PROCEDURE
 
 	youloseprocedure:
+
 		invoke GetAsyncKeyState, VK_RIGHT
 		cmp eax, 0
 		jne changehighlighted3
@@ -3515,6 +3536,31 @@ Update PROC
 		je endupdate
 
 
+		mov eax, score
+		mov ebx, 2500
+		xor edx, edx
+		idiv ebx
+		cmp level, eax
+		jge skiplevelup
+		mov level, eax
+		invoke mciSendString, offset playlevelup, NULL, 0, NULL
+
+		
+		skiplevelup:
+		invoke TalDiv, 2500, difficulty_factor, 0
+		mov ebx, eax
+		mov eax, score
+		xor edx, edx
+		idiv ebx
+		mov edx, INITIAL_UPDATE_TIMER
+		sub edx, eax
+		cmp edx, minimumUpdateTimer
+		jge gosettimer
+		mov edx, minimumUpdateTimer
+		gosettimer:
+		invoke SetTimer, hWnd, TM_UPDATE, edx , NULL
+
+
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,0ffh
 		;
 		;~~~ Move Block Down
@@ -3536,7 +3582,7 @@ Update ENDP
  
 Create PROC
  
-
+		mov created, 1
 		mov startscreen, 1
 		mov ebx, offset next2blocks
 		mov ecx, 2
@@ -3995,9 +4041,6 @@ local brushcolouring:HBRUSH
 		mov eax, hWnd1
 		mov hWnd, eax
 
-
-		
-		skipcheckfocus: 
 
 		cmp      message,               WM_PAINT
 		je        painting
