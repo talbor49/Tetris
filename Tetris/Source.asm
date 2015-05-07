@@ -53,7 +53,7 @@ Todo list:
  
  
 		.const
-		SCORE_BONUS equ 150
+		SCORE_BONUS equ 500
 		BUTTONS_MARGIN equ 75
 		BLOCK_SIZE equ 40
 		MAIN_TIMER_ID equ 0
@@ -63,10 +63,13 @@ Todo list:
 		TM_UPDATE equ 1337
 		TM_GET_INPUT_FROM_KEYBOARD equ 1336
 		INITIAL_UPDATE_TIMER equ 750
-		INPUT_FROM_KEYBOARD_DELAY_IN_MENUS equ 150
+		INPUT_FROM_KEYBOARD_DELAY_IN_MENUS equ 125
 		INPUT_FROM_KEYBOARD_DELAY_IN_GAME equ 100
 		INPUT_FROM_KEYBOARD_DELAY_IN_OPTIONS equ 20
 .data
+		nextBlockType DWORD ?
+		nextBlockColor BYTE ?
+		upwasclickedlasttime DWORD 0
 		framesPassedSinceLastChangedButton DWORD 0
 		framesPassedSinceLastEnteredPause DWORD 0
 		timeLastPutDown DWORD 0
@@ -75,6 +78,7 @@ Todo list:
 		instructions2 db "Up button   - rotate block.", 0
 		instructions3 db "Down button  - move the block down faster.", 0 
 		instructions4 db "Spacebar - instantly place block.",0
+		scoretext db "Score: ",0
 		hWnd HWND ?
 		BitmapsBodyGuard1 db 10000 dup(0)
 		randomColor db 0
@@ -128,6 +132,10 @@ Todo list:
 		HChangeTheme HBITMAP ?
 		HChangeThemeMask HBITMAP ?
  
+		HBlackThemeBackground HBITMAP ?
+		HScoreBrickBackground HBITMAP ?
+
+
 		HBlock0 HBITMAP ?
 		HBlock1 HBITMAP ?
 		HBlock2 HBITMAP ?
@@ -135,19 +143,24 @@ Todo list:
 		HBlock4 HBITMAP ?
 		HBlock5 HBITMAP ?
 		HBlock6 HBITMAP ?
+		HBlock255 HBITMAP ?
 
 		BitmapsBodyGuard2 db 10000 dup(0)
 		scoreFont HFONT ?
 		titleFont HFONT ?
-		theme DWORD WHITE_THEME
+		scoreTitleFont HFONT ?
+		theme DWORD BLACK_THEME
 		AnimateHWnd HWND ?
 		offsetinstring DWORD 0
 		score DWORD 0
 		scorestring db "000000"
 		volume DWORD 00ff00ffh
-		CircleX DWORD 400
-		soundpath db "tetrissound.wav",0
-		bloppath db "blop.wav", 0
+		CircleX DWORD 200
+		playBackgroundMusic db "play tetrissound.wav",0
+		freezeBackgroundMusic db "pause tetrissound.wav",0
+		resumeBackgroundMusic db "resume tetrissound.wav", 0
+		restartBackgroundMusic db "seek tetrissound.wav to start", 0
+		playblop db "play blop.wav", 0
 		FramesPassedSinceLastArrowClick DWORD 30
 		highlighted db 0
 		highlightedoptionsscreen db 0
@@ -165,7 +178,6 @@ Todo list:
 		FullLine db ?
 		CurrentColor db 1
 		youlosestate db 0
-		avipath db "foldermove.avi",0		
 		backupecx DWORD ?
 		next2blocks db 1000 dup(0ffh)
 		grid DB 10000 dup(00FFh)
@@ -173,7 +185,7 @@ Todo list:
 		BlockX DWORD   0
 		BlockY DWORD   0
 		ClassName          DB     "Tetris",0
-		windowTitle      DB       "A Game!",0
+		windowTitle      DB       "Tetris",0
  
 		startTime DWORD ?
  
@@ -2599,10 +2611,11 @@ ClearSideBarGrid ENDP
  
  
 ChangeBlock PROC
-		
+		invoke mciSendString, offset playblop, NULL, 0, NULL
 
 		invoke ClearSideBarGrid
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,CurrentColor
+		COMMENT @
 		mov esi, offset next2blocks
 		mov eax, DWORD ptr [esi]
 		mov BlockType, eax
@@ -2632,6 +2645,19 @@ ChangeBlock PROC
 		mov al, CurrentColor
 		mov BYTE ptr [edi], al
  
+		pop eax
+		mov CurrentColor, al
+		pop BlockType @
+
+		push nextBlockType
+		xor eax, eax
+		mov al, nextBlockColor
+		push eax
+		invoke GetRandomBlock
+		mov eax, BlockType
+		mov nextBlockType, eax
+		mov al, CurrentColor
+		mov nextBlockColor, al
 		pop eax
 		mov CurrentColor, al
 		pop BlockType
@@ -2664,7 +2690,7 @@ generate:
 		xor edx, edx
 		mov bx, 7
 		div bx
-		mov BlockType, edx
+		mov nextBlockType, edx
 		cmp randomColor, 0
 		je skipgetrandomcolor
 		invoke GetRandomNumber, 4, offset randombuffer
@@ -2694,27 +2720,7 @@ generate:
 GenerateRandomBlocksToArray ENDP
  
  
-DrawNext2Blocks PROC
-local btype:DWORD
-local color:BYTE
-		mov esi, 3
-		mov edi, 4
-		mov ebx, offset next2blocks
-		mov ecx, 2
-nextblock:
-		mov eax, DWORD ptr [ebx]
-		mov btype, eax
-		add ebx, 4
-		mov al, BYTE ptr [ebx]
-		mov color, al
-		inc ebx
-		pusha
-		invoke BuildSideBarBlock, esi,edi,btype,0,color
-		popa
-		add edi, 7
-		loop nextblock
-		ret
-DrawNext2Blocks ENDP
+
  
  
  
@@ -2901,10 +2907,60 @@ innerloop:
 		loop outerloop
 		ret
 ClearGrid ENDP
+
+
+
+
+
+
  
+DrawEmptyBlackBlocks PROC, hdc:HDC
+
+		;Draws all the blocks on the grid
  
+		mov ebx, 0
+		mov edx, 0
+		invoke TalDiv, WindowHeight, BLOCK_SIZE,0
+		mov ecx, eax
+loop00:
+		mov backupecx, ecx
+		invoke TalDiv, WindowWidth, BLOCK_SIZE,0
+		mov ecx, eax
+		mov ebx, 0
+loop01:
+		pusha
+		pusha
+		invoke ReadGrid, ebx, edx
+		cmp al, 0FFh
+		jne skipdrawpopa		
  
-DrawGridLines PROC, hdc
+		popa
+		imul ebx, BLOCK_SIZE
+		imul edx, BLOCK_SIZE
+		invoke DrawImage, hdc, HBlock255, ebx, edx
+		jmp skipdraw
+skipdrawpopa:
+		popa
+                           
+skipdraw:
+		popa
+		inc ebx
+		loop loop01
+
+		mov ecx, backupecx
+		inc edx
+		loop loop00
+		ret
+
+
+ret
+DrawEmptyBlackBlocks ENDP
+ 
+
+
+
+
+DrawGridLines PROC, hdc:HDC
 local pen:HPEN
  
 		;invoke CreatePen, PS_SOLID, 1, 0ffffffh
@@ -2976,6 +3032,7 @@ itoa ENDP
 DrawNumber PROC, hdc:HDC, num:DWORD, x:DWORD, y:DWORD
 		invoke itoa, num, offset scorestring
 		push eax		
+		;invoke SetTextColor, hdc, 0ffffffh
 		invoke SelectObject, hdc, scoreFont
 		pop eax
 		invoke TextOut, hdc, x,y, offset scorestring, eax
@@ -3079,7 +3136,7 @@ skipright:
 		sub CircleX, 7
 skipleft:
 		mov eax, CircleX
-		sub eax, 50
+		sub eax, 43
 		imul eax, 118
 		push ax
 		rol eax, 16
@@ -3094,6 +3151,7 @@ endoperations:
 		je endcheck
 		;mov startscreen, 1
 		mov optionscreenstate, 0
+		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
 		invoke GetAsyncKeyState, VK_UP
 		invoke GetAsyncKeyState, VK_DOWN
 		invoke GetAsyncKeyState, VK_RETURN
@@ -3109,7 +3167,7 @@ endcheck:
  NewGame PROC
 
 		mov eax, CircleX
-		sub eax, 50
+		sub eax, 43
 		imul eax, 118
 		push ax
 		rol eax, 16
@@ -3122,8 +3180,15 @@ endcheck:
 
 		invoke ClearGrid
 		invoke ClearSideBarGrid
-		invoke PlaySound, offset soundpath, NULL, SND_LOOP + SND_ASYNC
-		invoke GenerateRandomBlocksToArray
+		invoke mciSendString, offset restartBackgroundMusic, NULL, 0, NULL
+		invoke mciSendString, offset playBackgroundMusic, NULL, 0, NULL
+
+
+		invoke GetRandomBlock
+		mov eax, BlockType
+		mov nextBlockType, eax
+		mov al, CurrentColor
+		mov nextBlockColor, al
 		mov startscreen, 0
 		mov youlosestate, 0
 		mov optionscreenstate, 0
@@ -3131,33 +3196,7 @@ endcheck:
 		mov highlighted, 0
 		mov PauseState ,0
  
-		xor edx, edx
-		mov eax, WindowWidth
-		mov ebx, BLOCK_SIZE
-		idiv ebx
-		xor edx, edx
-		mov ebx, 2
-		idiv ebx
- 
-		mov BlockX, eax
-		mov BlockY, -1
-		mov BlockMode, 0
-		invoke GetRandomNumber, 4, offset randombuffer
-		mov eax, randombuffer
-		xor edx, edx
-		mov bx, 7
-		div bx
-		mov BlockType, edx
-
-		cmp randomColor, 0
-		je skipgetrandomcolor
-
-		invoke GetRandomNumber, 4, offset randombuffer
-		mov eax, randombuffer
-		xor dx, dx
-		mov bx, 10
-		div bx
-		mov CurrentColor, dl
+		invoke GetRandomBlock
 		
 		ret
 
@@ -3200,7 +3239,9 @@ endcheck:
 		je skippause1
 		inc PauseState
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, 350, NULL
-		invoke PlaySound, NULL, NULL, NULL
+		;invoke PlaySound, NULL, NULL, NULL       
+		invoke mciSendString, offset freezeBackgroundMusic, NULL, 0, NULL
+
 		ret
 		;~~~~~~~~~~~ end pause procedure
 
@@ -3225,14 +3266,14 @@ checkleftbutton:
 		cmp eax, 1
 		je checkupbutton
 		inc BlockX
-checkupbutton:
-		inc timesDidntCheckUp
-		cmp timesDidntCheckUp, 2
-		jl checkdownbutton
-		mov timesDidntCheckUp, 0
+checkupbutton:		
 		invoke GetAsyncKeyState, VK_UP
 		cmp eax, 0
-		je checkdownbutton
+		je checkdownbuttonandupwasntclicked
+		mov eax, upwasclickedlasttime
+		mov upwasclickedlasttime, 1
+		cmp eax, 1
+		je checkdownbutton		
 		cmp BlockMode, 3
 		je resetblockmode
 		inc BlockMode
@@ -3250,6 +3291,9 @@ checkifcanflip:
 		jmp checkdownbutton
 put3blockmode:
 		mov BlockMode, 3
+		jmp checkdownbutton
+checkdownbuttonandupwasntclicked:
+		mov upwasclickedlasttime, 0
 checkdownbutton:
 		invoke GetAsyncKeyState, VK_DOWN
 		cmp eax, 0
@@ -3258,7 +3302,7 @@ checkdownbutton:
 		inc score
 		invoke CheckIfCanGo, BlockX, BlockY, BlockType, BlockMode
 		cmp eax, 1
-		je skipmoving
+		je checkspace
 		dec BlockY		
 		invoke ChangeBlock
 checkspace:
@@ -3381,7 +3425,8 @@ skipchangehighlighted3:
 
 		 
 resume:
-		invoke PlaySound, offset soundpath, NULL, SND_LOOP + SND_ASYNC 
+		invoke mciSendString, offset resumeBackgroundMusic, NULL, 0, NULL
+
 		mov highlighted, 0
 		mov PauseState, 0
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_GAME, NULL
@@ -3399,8 +3444,10 @@ resume:
 		 
 
 pausescreenprocedure:
-		invoke PlaySound, NULL, NULL, NULL       
- 
+		;invoke PlaySound, NULL, NULL, NULL       
+		invoke mciSendString, offset freezeBackgroundMusic, NULL, 0, NULL
+
+
 		invoke GetAsyncKeyState, VK_DOWN
 		cmp eax, 0
 		je checkup1
@@ -3514,9 +3561,11 @@ createblocks:
 		mov scoreFont, eax
  
 
-		;invoke CreateFont, 30,15, 0,0, FW_BOLD, TRUE,TRUE,FALSE,ANSI_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,DEFAULT_PITCH OR FF_DONTCARE, NULL
-		invoke CreateFont, 45, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, OUT_OUTLINE_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, FF_MODERN, offset TimesNewRoman
+		invoke CreateFont, 35,15, 0,0, FW_BOLD, TRUE,TRUE,FALSE,ANSI_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,DEFAULT_PITCH OR FF_DONTCARE, NULL
 		mov titleFont, eax
+
+		invoke CreateFont, 75,25, 0,0, FW_BOLD, TRUE,TRUE,FALSE,ANSI_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,DEFAULT_PITCH OR FF_DONTCARE, NULL
+		mov scoreTitleFont, eax
 
 		invoke GetModuleHandle,NULL
 		invoke LoadBitmap,eax,101
@@ -3621,8 +3670,6 @@ createblocks:
 		invoke LoadBitmap,eax,119
 		mov HScore,eax
  
-		invoke Get_Handle_To_Mask_Bitmap, HScore, 00ffffffh
-		mov HScoreMask, eax
  
  
 		invoke GetModuleHandle,NULL
@@ -3700,6 +3747,20 @@ createblocks:
 		invoke GetModuleHandle,NULL
 		invoke LoadBitmap,eax,1343
 		mov HBlock6,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1336
+		mov HBlock255,eax
+ 
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1344
+		mov HBlackThemeBackground,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1345
+		mov HScoreBrickBackground,eax
+
+
  
  
 		mov BlockMode, 0
@@ -3800,7 +3861,8 @@ youlosescreen:
  
                            
 		invoke DrawImage, hdc, HGameOver,0,0
-		invoke PlaySound, NULL, NULL, NULL
+		;invoke PlaySound, NULL, NULL, NULL       
+		invoke mciSendString, offset freezeBackgroundMusic, NULL, 0, NULL
  
 		invoke DrawGameOverButtons, hdc, highlightedgameover
 		invoke EndPaint, hWnd, addr paint
@@ -3840,8 +3902,9 @@ drawgame:
 		invoke myOwnClearScreen, hdcMem
 		invoke myOwnClearSideBarGrid, hdcMem
 		invoke DrawGrid, hdcMem
-		invoke DrawNext2Blocks
+		invoke BuildSideBarBlock, 2,10,nextBlockType,0,nextBlockColor		
 		invoke DrawSideBarGrid, hdcMem, 400, 300
+		
 
 
 		invoke crt_strlen, offset instructions1
@@ -3866,13 +3929,15 @@ drawgame:
                                                                                                                            
  
 blacktheme:
+		invoke DrawImage, hdcMem, HBlackThemeBackground, 400, 0
 		invoke DrawGrid, hdcMem
-		invoke DrawNext2Blocks
+		invoke BuildSideBarBlock, 3,10,nextBlockType,0,nextBlockColor		
 		invoke DrawSideBarGrid, hdcMem, 400, 300
-		invoke DrawImage_WithMask, hdcMem, HScore, HScoreMask, 400, 0
-		invoke DrawNumber, hdcMem, score, 400,56
-
 		
+
+
+		invoke SetTextColor, hdcMem, 0ffffffh	
+
 
 		invoke crt_strlen, offset instructions1
 		invoke TextOut, hdcMem, 410, 650, offset instructions1, eax
@@ -3883,25 +3948,34 @@ blacktheme:
 		invoke crt_strlen, offset instructions4
 		invoke TextOut, hdcMem, 410, 710, offset instructions4, eax
 
+		
 
 		invoke SelectObject, hdcMem, titleFont
 		invoke crt_strlen, offset instructions0
 		invoke TextOut, hdcMem, 410, 600, offset instructions0, eax
 
+		invoke SelectObject, hdcMem, scoreTitleFont
+		invoke SetTextColor, hdcMem, 00a5efh ; ;ffa500
+		invoke crt_strlen, offset scoretext
+		invoke TextOut, hdcMem, 435, 0+20, offset scoretext, eax
 
-		invoke DrawImage_WithMask, hdcMem, HScore, HScoreMask, 400, 0
-		invoke DrawNumber, hdcMem, score, 400,56
-		invoke DrawGridLines, hdcMem
- 
+		invoke SetTextColor, hdcMem, 0ffffffh	
+
+		invoke DrawImage, hdcMem, HScoreBrickBackground, 407, 56+50
+		invoke DrawNumber, hdcMem, score, 450,67+50
+
+		
+		;invoke DrawImage, hdcMem, HScore, 435, 0+50
+		invoke DrawEmptyBlackBlocks, hdcMem
                                                            
 afterthemes:
 		
 
 		invoke BitBlt,hdc, 0, 0, RealWindowWidth, WindowHeight, hdcMem, 0, 0, SRCCOPY
                                                            
-		invoke SelectObject,hdcMem, hOld;
-		invoke DeleteObject,hbmMem;
-		invoke DeleteDC,hdcMem;
+		invoke SelectObject,hdcMem, hOld
+		invoke DeleteObject,hbmMem
+		invoke DeleteDC,hdcMem
 		invoke EndPaint, hWnd,  addr paint     
 		ret
  
