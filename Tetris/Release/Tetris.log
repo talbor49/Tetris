@@ -1,0 +1,35 @@
+﻿Build started 5/5/2015 10:52:43 PM.
+     1>Project "C:\Users\Tal\Downloads\Tetris\Tetris\Tetris.vcxproj" on node 2 (Build target(s)).
+     1>_MASM:
+         Assembling Source.asm...
+         cmd.exe /C "C:\Users\Tal\AppData\Local\Temp\tmp463bf78952494724b5bf905c4b0102ee.cmd"
+         ml.exe /c /nologo /Zi /Fo"Release\Source.obj" /W3 /errorReport:prompt  /TaSource.asm
+     1>Source.asm(329): warning A6004: procedure argument or local not referenced : HOld
+     1>Source.asm(536): warning A6004: procedure argument or local not referenced : brush
+     1>Source.asm(579): warning A6004: procedure argument or local not referenced : brush
+     1>Source.asm(3895): warning A6004: procedure argument or local not referenced : message
+     1>Source.asm(3895): warning A6004: procedure argument or local not referenced : wParam
+     1>Source.asm(3895): warning A6004: procedure argument or local not referenced : lParam
+     1>Source.asm(3895): warning A6004: procedure argument or local not referenced : brushcolouring
+     1>Source.asm(3972): warning A6004: procedure argument or local not referenced : paint
+     1>Source.asm(3972): warning A6004: procedure argument or local not referenced : hdc
+     1>Source.asm(3972): warning A6004: procedure argument or local not referenced : hdcMem
+     1>Source.asm(3972): warning A6004: procedure argument or local not referenced : hOld
+     1>Source.asm(3972): warning A6004: procedure argument or local not referenced : hbmMem
+     1>Source.asm(3972): warning A6004: procedure argument or local not referenced : brushcolouring
+       ResourceCompile:
+         C:\Program Files (x86)\Windows Kits\8.1\bin\x86\rc.exe /D _UNICODE /D UNICODE /l"0x0409" /nologo /fo"Release\Resource.res" Resource.rc 
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Tal\Downloads\Tetris\Release\Tetris.exe" /INCREMENTAL:NO /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\Tal\Downloads\Tetris\Release\Tetris.pdb" /SUBSYSTEM:WINDOWS /OPT:REF /OPT:ICF /LTCG /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Tal\Downloads\Tetris\Release\Tetris.lib" /MACHINE:X86 /SAFESEH Release\Resource.res
+         Release\Source.obj
+         LINK : /LTCG specified but no code generation required; remove /LTCG from the link command line to improve linker performance
+     1>Source.obj : error LNK2026: module unsafe for SAFESEH image.
+     1>winmm.lib(winmm.dll) : error LNK2026: module unsafe for SAFESEH image.
+     1>winmm.lib(winmm.dll) : error LNK2026: module unsafe for SAFESEH image.
+     1>msvcrt.lib(msvcrt.dll) : error LNK2026: module unsafe for SAFESEH image.
+     1>C:\Users\Tal\Downloads\Tetris\Release\Tetris.exe : fatal error LNK1281: Unable to generate SAFESEH image.
+     1>Done Building Project "C:\Users\Tal\Downloads\Tetris\Tetris\Tetris.vcxproj" (Build target(s)) -- FAILED.
+
+Build FAILED.
+
+Time Elapsed 00:00:01.06

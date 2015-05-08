@@ -63,11 +63,14 @@ Todo list:
 		TM_UPDATE equ 1337
 		TM_GET_INPUT_FROM_KEYBOARD equ 1336
 		INITIAL_UPDATE_TIMER equ 750
-		INPUT_FROM_KEYBOARD_DELAY_IN_MENUS equ 125
+		INPUT_FROM_KEYBOARD_DELAY_IN_MENUS equ 20
 		INPUT_FROM_KEYBOARD_DELAY_IN_GAME equ 100
 		INPUT_FROM_KEYBOARD_DELAY_IN_OPTIONS equ 20
 .data
-
+		clickedescapelasttime DWORD 0
+		clickedenterlasttime DWORD 0
+		clickeddownlasttime DWORD 0
+		clickeduplasttime DWORD 0
 		difficulty_factor DWORD 100
 		minimumUpdateTimer DWORD 150
 		level DWORD 0
@@ -75,8 +78,6 @@ Todo list:
 		nextBlockColor BYTE ?
 		upwasclickedlasttime DWORD 0
 		changedthemelasttime DWORD 0
-		framesPassedSinceLastChangedButton DWORD 0
-		framesPassedSinceLastEnteredPause DWORD 0
 		timeLastPutDown DWORD 0
 		instructions0 db "Game Controls", 0
 		instructions1 db "Right or Left buttons   - move block.",0
@@ -2806,7 +2807,7 @@ DrawOptionsButtons PROC, hdc:HDC, highlightedbutton:BYTE, circlex:DWORD, selecte
 		invoke DrawImage_WithMask, hdc, HHighLightBox, HHighLightMask, 50, edx
  
 		invoke DrawImage_WithMask, hdc, HVolumeBar,HVolumeBarMask, 50, 400
-		invoke DrawImage_WithMask, hdc, HCircle,HCircleMask, circlex, 400
+		invoke DrawImage_WithMask, hdc, HCircle,HCircleMask, circlex, 395
  
    
 		invoke DrawImage_WithMask, hdc, HChangeVolume, HChangeVolumeMask, 50, 315
@@ -3064,15 +3065,30 @@ DrawNumber ENDP
 		ret
                            
 		checkbuttons:
-		invoke GetAsyncKeyState, VK_ESCAPE
+		invoke GetAsyncKeyState, VK_ESCAPE		
 		cmp eax, 0
-		jne endabout
+		je didntclickescapeabout
+		mov eax, clickedescapelasttime
+		mov clickedescapelasttime, 1
+		cmp eax, 1
+		je checkenter
+		jmp endabout
  
+ didntclickescapeabout:
+		mov clickedescapelasttime, 0
+		
+
+checkenter:
 		invoke GetAsyncKeyState, VK_RETURN
 		cmp eax, 0
-		jne endabout
- 
- 
+		je didntclickenteronabout
+		mov eax, clickedenterlasttime
+		mov clickedenterlasttime, 1
+		cmp eax, 1
+		je endaboutcheck
+		jmp endabout
+ didntclickenteronabout:
+		mov clickedenterlasttime, 0
 endaboutcheck:
 		ret
  
@@ -3086,26 +3102,35 @@ endabout:
 
 
  Options PROC
-		inc framesPassedSinceLastEnteredPause
-		inc framesPassedSinceLastChangedButton
       	invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_OPTIONS, NULL
 
 		mov optionscreenstate, 1
 
 
-		cmp framesPassedSinceLastEnteredPause, 10        ;;;;;;;;;;;;;~~~~~~~~~~~~~~~~=============== FIX HERE TO ON CLICK CHANGE.
-		jl dooperation
-		mov framesPassedSinceLastEnteredPause, 0
+
 		invoke GetAsyncKeyState, VK_UP
 		cmp eax, 0
+		je checkdown4andnoclick
+		mov eax, clickeduplasttime
+		mov clickeduplasttime, 1
+		cmp eax, 1
 		je checkdown4
 		xor highlightedoptionsscreen, 1
+		jmp checkdown4
+checkdown4andnoclick:
+		mov clickeduplasttime, 0
 checkdown4:
 		invoke GetAsyncKeyState, VK_DOWN
 		cmp eax, 0
+		je dooperationandnoclick
+		mov eax, clickeddownlasttime
+		mov clickeddownlasttime, 1
+		cmp eax, 1
 		je dooperation
 		xor highlightedoptionsscreen, 1
- 
+		jmp dooperation
+dooperationandnoclick:
+		mov clickeddownlasttime, 0
 dooperation:
 		cmp highlightedoptionsscreen , 0
 		je volumechangeoperation
@@ -3158,8 +3183,12 @@ skipleft:
 		invoke waveOutSetVolume, NULL, volume
  
 endoperations:
-		invoke GetAsyncKeyState, VK_ESCAPE
+		invoke GetAsyncKeyState, VK_ESCAPE		
 		cmp eax, 0
+		je endcheckanddidntclickescape
+		mov eax, clickedescapelasttime
+		mov clickedescapelasttime, 1
+		cmp eax, 1
 		je endcheck
 		;mov startscreen, 1
 		mov optionscreenstate, 0
@@ -3170,6 +3199,9 @@ endoperations:
 		invoke GetAsyncKeyState, VK_ESCAPE
 
 		invoke Sleep, 10
+		ret
+endcheckanddidntclickescape:
+		mov clickedescapelasttime, 0
 endcheck:
 		ret
 
@@ -3204,7 +3236,7 @@ endcheck:
 		mov startscreen, 0
 		mov youlosestate, 0
 		mov optionscreenstate, 0
-		mov score, 30000
+		mov score, 0
 		mov highlighted, 0
 		mov PauseState ,0
  
@@ -3229,6 +3261,7 @@ endcheck:
 		mov youlosestate, 0
 		mov startscreen, 1
 		mov highlighted, 0
+		mov PauseState, 0
 		ret
  MainMenu ENDP
 
@@ -3247,16 +3280,22 @@ endcheck:
 
 		;~~~~~~~~~~~ pause procedure
 		invoke GetAsyncKeyState, VK_ESCAPE
+		
 		cmp eax, 0
+		je skippause1anddidntclickescape
+		mov eax, clickedescapelasttime
+		mov clickedescapelasttime, 1
+		cmp eax, 1
 		je skippause1
 		inc PauseState
-		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, 350, NULL
+		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
 		;invoke PlaySound, NULL, NULL, NULL       
 		invoke mciSendString, offset freezeBackgroundMusic, NULL, 0, NULL
 
 		ret
 		;~~~~~~~~~~~ end pause procedure
-
+		skippause1anddidntclickescape:
+		mov clickedescapelasttime, 0
 		skippause1:
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,0ffh
 
@@ -3361,6 +3400,10 @@ skipmoving:
 		startscreenprocedure: 
 		invoke GetAsyncKeyState, VK_DOWN
 		cmp eax, 0
+		je checkupandnoclick
+		mov eax, clickeddownlasttime
+		mov clickeddownlasttime, 1
+		cmp eax, 1
 		je checkup
 		cmp highlighted, 3
 		je resethighlighted
@@ -3369,9 +3412,15 @@ skipmoving:
 resethighlighted:
 		mov highlighted, 0
 		jmp aftercheckup
+checkupandnoclick:
+		mov clickeddownlasttime, 0
 checkup:
 		invoke GetAsyncKeyState, VK_UP
 		cmp eax, 0
+		je aftercheckupandnoclickup
+		mov eax, clickeduplasttime
+		mov clickeduplasttime, 1
+		cmp eax, 1
 		je aftercheckup
 		cmp highlighted, 0
 		je resetuphighlighted
@@ -3379,14 +3428,21 @@ checkup:
 		jmp aftercheckup
 resetuphighlighted:
 		mov highlighted, 3
+		jmp aftercheckup
+aftercheckupandnoclickup:
+		mov clickeduplasttime, 0
 aftercheckup:
  
                     
  
 		invoke GetAsyncKeyState, VK_RETURN
 		cmp eax, 0
+		je didntclickenter
+		mov eax, clickedenterlasttime
+		mov clickedenterlasttime, 1
+		cmp eax, 1
 		je endoffunc
- 
+
 		cmp highlighted, 0
 		je newgame
 		cmp highlighted, 1
@@ -3396,7 +3452,9 @@ aftercheckup:
 		invoke Close
 
 		;~~~~~~~~~~~ END OF STARTSCREEN PROCEDURE
-
+didntclickenter:
+	mov clickedenterlasttime, 0
+	ret
 
 	newgame:
 	invoke NewGame
@@ -3458,12 +3516,17 @@ resume:
 
 
 		pauseprocedure:
-		invoke GetAsyncKeyState, VK_ESCAPE
+		invoke GetAsyncKeyState, VK_ESCAPE		
 		cmp eax, 0
+		je pausescreenprocedureandnoclickescape
+		mov eax, clickedescapelasttime
+		mov clickedescapelasttime, 1
+		cmp eax, 1
 		je pausescreenprocedure
 		jmp resume
 		 
-
+pausescreenprocedureandnoclickescape:
+		mov clickedescapelasttime, 0
 pausescreenprocedure:
 		;invoke PlaySound, NULL, NULL, NULL       
 		invoke mciSendString, offset freezeBackgroundMusic, NULL, 0, NULL
@@ -3471,6 +3534,10 @@ pausescreenprocedure:
 
 		invoke GetAsyncKeyState, VK_DOWN
 		cmp eax, 0
+		je checkup1andnoclickdown
+		mov eax, clickeddownlasttime
+		mov clickeddownlasttime, 1
+		cmp eax, 1
 		je checkup1
 		cmp highlighted, 3
 		je resethighlighted1
@@ -3479,9 +3546,15 @@ pausescreenprocedure:
 resethighlighted1:
 		mov highlighted, 0
 		jmp aftercheckup1
+checkup1andnoclickdown:
+		mov clickeddownlasttime, 0		
 checkup1:
 		invoke GetAsyncKeyState, VK_UP
 		cmp eax, 0
+		je aftercheckup1andnoclickup		
+		mov eax, clickeduplasttime
+		mov clickeduplasttime, 1
+		cmp eax, 1
 		je aftercheckup1
 		cmp highlighted, 0
 		je resetuphighlighted1
@@ -3489,6 +3562,9 @@ checkup1:
 		jmp aftercheckup1
 resetuphighlighted1:
 		mov highlighted, 3
+		jmp aftercheckup1
+aftercheckup1andnoclickup:
+		mov clickeduplasttime, 0
 aftercheckup1:
  
 		invoke GetAsyncKeyState, VK_RETURN
