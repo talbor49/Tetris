@@ -14,7 +14,8 @@ option casemap :none                                      ; case sensitive
 		include \masm32\include\winmm.inc
 		include \masm32\include\msvcrt.inc
 		includelib \masm32\lib\winmm.lib
- 
+		include \masm32\include\msimg32.inc
+		includelib \masm32\lib\msimg32.lib
  
  
 		include \masm32\include\dialogs.inc      ; macro file for dialogs
@@ -71,6 +72,8 @@ Todo list:
 		clickedenterlasttime DWORD 0
 		clickeddownlasttime DWORD 0
 		clickeduplasttime DWORD 0
+		clickedrightlasttime DWORD 0
+		clickedleftlasttime DWORD 0
 		difficulty_factor DWORD 100
 		minimumUpdateTimer DWORD 150
 		level DWORD 0
@@ -2682,6 +2685,7 @@ ChangeBlock PROC
 		cmp al, 0ffh
 		je endfunc
 		mov youlosestate, 1              
+		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
 		invoke mciSendString, offset playGameOverMusic, NULL, 0, NULL
 		invoke GetAsyncKeyState, VK_DOWN
 endfunc:
@@ -3173,7 +3177,7 @@ skipright:
 		sub CircleX, 10
 skipleft:
 		mov eax, CircleX
-		sub eax, 43
+		sub eax, 32h
 		imul eax, 118
 		push ax
 		rol eax, 16
@@ -3479,17 +3483,30 @@ didntclickenter:
 
 		invoke GetAsyncKeyState, VK_RIGHT
 		cmp eax, 0
-		jne changehighlighted3
- 
+		je checkleftandandnotclickright
+		mov eax, clickedrightlasttime
+		mov clickedrightlasttime, 1
+		cmp eax, 1
+		je checkleft
+		xor highlightedgameover, 1  ;if highlighted is 0 - make it 1. if highlighted is 1 - make it 0.
+		jmp skipchangehighlighted3
+
+		checkleftandandnotclickright:
+		mov clickedrightlasttime, 0
+
+		checkleft:
 		invoke GetAsyncKeyState, VK_LEFT
 		cmp eax, 0
-		jne changehighlighted3
- 
+		je skipchangehighlighted3anddidntclickleft
+		mov eax, clickedleftlasttime
+		mov clickedleftlasttime, 1
+		cmp eax, 1
+		je skipchangehighlighted3
+		xor highlightedgameover, 1  ;if highlighted is 0 - make it 1. if highlighted is 1 - make it 0.
 		jmp skipchangehighlighted3
  
- 
-changehighlighted3:
-		xor highlightedgameover, 1  ;if highlighted is 0 - make it 1. if highlighted is 1 - make it 0.
+ skipchangehighlighted3anddidntclickleft:
+		mov clickedleftlasttime, 0
  
 skipchangehighlighted3:
 		invoke GetAsyncKeyState, VK_RETURN
@@ -4160,7 +4177,11 @@ update:
 		ret
  
  getinputfromkeyboard:
+	invoke GetFocus
+	cmp eax, hWnd
+	jne dontgetinputfromkeyboard
 	invoke GetInputFromKeyboard
+	dontgetinputfromkeyboard:
 	ret
  
  
@@ -4201,7 +4222,7 @@ LOCAL msg:MSG
 		mov hWnd, eax ;Save the handle
 		add wndcls.style, WS_CLIPCHILDREN
 		invoke ShowWindow, eax, SW_SHOW ;Show it
-		invoke SetTimer, hWnd, MAIN_TIMER_ID, 25, NULL ;Set the repaint timer
+		invoke SetTimer, hWnd, MAIN_TIMER_ID, 20, NULL ;Set the repaint timer
 		invoke SetTimer, hWnd, TM_UPDATE, INITIAL_UPDATE_TIMER , NULL
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
 
