@@ -5,6 +5,7 @@
 		.model flat, stdcall                                    ; 32 bit memory model
 option casemap :none                                      ; case sensitive
 		;includes
+
 		include \masm32\include\windows.inc
 		include \masm32\include\kernel32.inc
 		include \masm32\include\user32.inc
@@ -61,13 +62,15 @@ Todo list:
 		ACM_OPEN equ 0400h + 100
 		BLACK_THEME equ 1
 		WHITE_THEME equ 0
+		TM_PAINT equ 1338
 		TM_UPDATE equ 1337
 		TM_GET_INPUT_FROM_KEYBOARD equ 1336
 		INITIAL_UPDATE_TIMER equ 750
 		INPUT_FROM_KEYBOARD_DELAY_IN_MENUS equ 20
-		INPUT_FROM_KEYBOARD_DELAY_IN_GAME equ 100
+		INPUT_FROM_KEYBOARD_DELAY_IN_GAME equ 90
 		INPUT_FROM_KEYBOARD_DELAY_IN_OPTIONS equ 20
-.data
+		PAINT_TIME equ 20
+		.data
 		clickedescapelasttime DWORD 0
 		clickedenterlasttime DWORD 0
 		clickeddownlasttime DWORD 0
@@ -87,7 +90,7 @@ Todo list:
 		instructions2 db "Up button   - rotate block.", 0
 		instructions3 db "Down button  - move the block down faster.", 0 
 		instructions4 db "Spacebar - instantly place block.",0
-		scoretext db "Score: ",0
+scoretext db "Score: ",0
 		hWnd HWND ?
 		BitmapsBodyGuard1 db 10000 dup(0)
 		randomColor db 0
@@ -142,6 +145,7 @@ Todo list:
 		HChangeThemeMask HBITMAP ?
  
 		HBlackThemeBackground HBITMAP ?
+		HWhiteThemeBackground HBITMAP ?
 		HScoreBrickBackground HBITMAP ?
 
 
@@ -301,7 +305,7 @@ local HOld:HDC
 		invoke SelectObject, hdcMem, img
 		mov HOld, eax
 		invoke BitBlt,hdc,x,y,RealWindowWidth,WindowHeight,hdcMem,0,0,SRCCOPY
-		invoke DeleteObject, HOld
+		invoke DeleteDC, HOld
 		invoke DeleteDC,hdcMem
 		ret
 DrawImage ENDP
@@ -318,7 +322,7 @@ local HOld:HBITMAP
 		invoke StretchBlt ,hdc,x,y,wstrech,hstrech,hdcMem,x2,y2,w,h,SRCCOPY
 		invoke SelectObject,hdcMem,HOld
 		invoke DeleteDC,hdcMem 
-		invoke DeleteObject,HOld
+		invoke DeleteDC, HOld
 		;================================================================================
 		ret
 DrawImage_WithStretch ENDP
@@ -334,7 +338,7 @@ local HOld:HDC
                
 		invoke SelectObject, hdcMem, img
 		invoke BitBlt,hdc,x,y,RealWindowWidth,WindowHeight,hdcMem,0,0,SRCPAINT
-		invoke DeleteObject, HOld
+		invoke DeleteDC, HOld
 		invoke DeleteDC,hdcMem
 		ret
 DrawImage_WithMask ENDP
@@ -351,7 +355,7 @@ local HOld:HDC
 		
 		invoke SelectObject, hdcMem, img
 		invoke StretchBlt ,hdc,x,y,wstrech,hstrech,hdcMem,x2,y2,w,h,SRCPAINT
-
+		invoke DeleteDC, HOld
 		invoke DeleteDC,hdcMem 
 		;================================================================================
 		ret
@@ -376,7 +380,7 @@ ReadGrid PROC, XIndex:DWORD, YIndex:DWORD
 		jl donotbreakpoint
 
 		mov al, al
-		donotbreakpoint:
+donotbreakpoint:
 
 		ret
 ReadGrid ENDP
@@ -454,19 +458,19 @@ ReadSideBarGrid ENDP
  
 myOwnClearSideBarGrid PROC, hdc:HDC
 local brush:HBRUSH
- 
-		invoke GetStockObject, WHITE_BRUSH
+ 		invoke GetStockObject, WHITE_BRUSH
 		mov brush, eax
 		invoke SelectObject, hdc, brush
-		invoke BUILDRECT, 400, 0, WindowHeight, 300, hdc, brush
+		invoke BUILDRECT, 400, 0, WindowHeight, 300, hdc, brush  ;Draw a rectangle the size of the side bar.
 		ret
 myOwnClearSideBarGrid ENDP
  
  
  
  
-Close PROC
- 
+Close PROC 
+;Release resources before closing
+
 		invoke DeleteObject, HPauseScreen
 		invoke DeleteObject, HAboutPage
 		invoke DeleteObject, HStartScreen
@@ -522,7 +526,6 @@ Close ENDP
  
  
 DrawGrid PROC, hdc:HDC
-local brush:HBRUSH
 local Hbmp:HBITMAP
  
 		;Draws all the blocks on the grid
@@ -566,7 +569,6 @@ DrawGrid ENDP
  
  
 DrawSideBarGrid PROC, hdc:HDC, x:DWORD, w:DWORD
-local brush:HBRUSH
 local Hbmp:HDC
 		;Draws all the blocks on the grid
  
@@ -630,7 +632,7 @@ SetGrid PROC, XIndex:DWORD, YIndex:DWORD, data:BYTE
 
 		mov al, data
 
-		skipnobreakpoint:
+skipnobreakpoint:
 		mov ebx, offset grid
 		xor edx, edx
 		mov eax, WindowWidth
@@ -2594,7 +2596,7 @@ GetRandomBlock PROC
 		div bx
 		mov CurrentColor, dl
 		ret
-		getcolorfromblock:
+getcolorfromblock:
 
 		mov eax, BlockType
 		mov CurrentColor, al
@@ -2684,10 +2686,13 @@ ChangeBlock PROC
 		invoke ReadGrid, ebx, edx
 		cmp al, 0ffh
 		je endfunc
-		mov youlosestate, 1              
+		mov youlosestate, 1    		          
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
 		invoke mciSendString, offset playGameOverMusic, NULL, 0, NULL
 		invoke GetAsyncKeyState, VK_DOWN
+		invoke GetAsyncKeyState, VK_RETURN
+		invoke GetAsyncKeyState, VK_LEFT
+		invoke GetAsyncKeyState, VK_RIGHT
 endfunc:
 
 		invoke ClearFullLines
@@ -2716,11 +2721,11 @@ generate:
 		div bx
 		mov CurrentColor, dl
 		jmp skipskipgetrandomcolor
-		skipgetrandomcolor:
+skipgetrandomcolor:
 		mov eax, BlockType
 		mov CurrentColor, al
 
-		skipskipgetrandomcolor:
+skipskipgetrandomcolor:
 		popa
  
 		mov eax, BlockType
@@ -2969,7 +2974,7 @@ skipdraw:
 		ret
 
 
-ret
+		ret
 DrawEmptyBlackBlocks ENDP
  
 
@@ -3058,17 +3063,15 @@ DrawNumber PROC, hdc:HDC, num:DWORD, x:DWORD, y:DWORD
 DrawNumber ENDP
  
  
- About PROC
-		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
-
-		
+About PROC
+		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL		
 		mov startscreen, 0
 		cmp aboutpage, 1
 		je checkbuttons
 		mov aboutpage, 1
 		ret
                            
-		checkbuttons:
+checkbuttons:
 		invoke GetAsyncKeyState, VK_ESCAPE		
 		cmp eax, 0
 		je didntclickescapeabout
@@ -3078,7 +3081,7 @@ DrawNumber ENDP
 		je checkenter
 		jmp endabout
  
- didntclickescapeabout:
+didntclickescapeabout:
 		mov clickedescapelasttime, 0
 		
 
@@ -3091,7 +3094,7 @@ checkenter:
 		cmp eax, 1
 		je endaboutcheck
 		jmp endabout
- didntclickenteronabout:
+didntclickenteronabout:
 		mov clickedenterlasttime, 0
 endaboutcheck:
 		ret
@@ -3102,11 +3105,11 @@ endabout:
 		mov startscreen, 1
 		ret
 
- About ENDP
+About ENDP
 
 
- Options PROC
-      	invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_OPTIONS, NULL
+Options PROC
+		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_OPTIONS, NULL
 
 		mov optionscreenstate, 1
 
@@ -3194,7 +3197,6 @@ endoperations:
 		mov clickedescapelasttime, 1
 		cmp eax, 1
 		je endcheck
-		;mov startscreen, 1
 		mov optionscreenstate, 0
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
 		invoke GetAsyncKeyState, VK_UP
@@ -3207,10 +3209,10 @@ endcheckanddidntclickescape:
 endcheck:
 		ret
 
- Options ENDP
+Options ENDP
 
 
- NewGame PROC
+NewGame PROC
 
 		mov eax, CircleX
 		sub eax, 43
@@ -3222,7 +3224,7 @@ endcheck:
 		mov volume, eax
 		invoke waveOutSetVolume, NULL, volume
 
- 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_GAME, NULL
+		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_GAME, NULL
 
 		invoke ClearGrid
 		invoke ClearSideBarGrid
@@ -3246,18 +3248,18 @@ endcheck:
 		
 		ret
 
-		skipgetrandomcolor:
+skipgetrandomcolor:
 		mov eax, BlockType
 		mov CurrentColor, al
 
 		ret
- NewGame ENDP
+NewGame ENDP
 
 
- MainMenu PROC
-       	invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
+MainMenu PROC
+		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
 
- invoke GetAsyncKeyState, VK_DOWN
+		invoke GetAsyncKeyState, VK_DOWN
 		invoke GetAsyncKeyState, VK_UP
 		invoke GetAsyncKeyState, VK_RETURN
 		mov youlosestate, 0
@@ -3265,10 +3267,10 @@ endcheck:
 		mov highlighted, 0
 		mov PauseState, 0
 		ret
- MainMenu ENDP
+MainMenu ENDP
 
  
- GetInputFromKeyboard PROC
+GetInputFromKeyboard PROC
 		cmp optionscreenstate, 1
 		je options
 		cmp startscreen, 1
@@ -3277,7 +3279,7 @@ endcheck:
 		je youloseprocedure		
 		cmp PauseState, 1
 		je pauseprocedure
-        cmp aboutpage, 1
+		cmp aboutpage, 1
 		je about
 
 		;~~~~~~~~~~~ pause procedure
@@ -3289,16 +3291,16 @@ endcheck:
 		mov clickedescapelasttime, 1
 		cmp eax, 1
 		je skippause1
-		inc PauseState
+		mov PauseState, 1
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
 		;invoke PlaySound, NULL, NULL, NULL       
 		invoke mciSendString, offset freezeBackgroundMusic, NULL, 0, NULL
 
 		ret
 		;~~~~~~~~~~~ end pause procedure
-		skippause1anddidntclickescape:
+skippause1anddidntclickescape:
 		mov clickedescapelasttime, 0
-		skippause1:
+skippause1:
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,0ffh
 
 		invoke GetAsyncKeyState, VK_RIGHT
@@ -3319,7 +3321,7 @@ checkleftbutton:
 		cmp eax, 1
 		je checkupbutton
 		inc BlockX
-checkupbutton:		
+checkupbutton:
 		invoke GetAsyncKeyState, VK_UP
 		cmp eax, 0
 		je checkdownbuttonandupwasntclicked
@@ -3358,7 +3360,7 @@ checkdownbutton:
 		je checkspace
 		dec BlockY		
 		invoke ChangeBlock
-checkspace:		
+checkspace:
 		invoke GetAsyncKeyState, VK_SPACE
 		cmp eax, 0
 		je skipmovingandputclicspacelasttime0
@@ -3377,7 +3379,6 @@ checkspace:
 
 		invoke GetTickCount
 		mov timeLastPutDown, eax
-		;invoke mciSendString, offset playwoosh, NULL, 0, NULL
 		invoke mciSendString, offset playwoosh, NULL, 0, NULL
 
 putblockdown:
@@ -3398,8 +3399,8 @@ skipmoving:
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,CurrentColor
 		ret
 
-		;~~~~~~~~~~~ START OF STARTSCREEN PROCEDURE
-		startscreenprocedure: 
+;~~~~~~~~~~~ START OF STARTSCREEN PROCEDURE
+startscreenprocedure:
 		invoke GetAsyncKeyState, VK_DOWN
 		cmp eax, 0
 		je checkupandnoclick
@@ -3453,31 +3454,31 @@ aftercheckup:
 		je about              
 		invoke Close
 
-		;~~~~~~~~~~~ END OF STARTSCREEN PROCEDURE
+;~~~~~~~~~~~ END OF STARTSCREEN PROCEDURE
 didntclickenter:
-	mov clickedenterlasttime, 0
-	ret
+		mov clickedenterlasttime, 0
+		ret
 
-	newgame:
-	invoke NewGame
-	ret
+newgame:
+		invoke NewGame
+		ret
 
-	options:
-	invoke Options
-	ret
+options:
+		invoke Options
+		ret
 
-	about:
-	invoke About
-	ret
+about:
+		invoke About
+		ret
 
-	mainmenu:
-	invoke MainMenu
-	ret
+mainmenu:
+		invoke MainMenu
+		ret
 
 
-		;~~~~~~~~~~~~~~~~~~~~~~~~ START YOULOSE PROCEDURE
+;~~~~~~~~~~~~~~~~~~~~~~~~ START YOULOSE PROCEDURE
 
-	youloseprocedure:
+youloseprocedure:
 
 		invoke GetAsyncKeyState, VK_RIGHT
 		cmp eax, 0
@@ -3489,10 +3490,10 @@ didntclickenter:
 		xor highlightedgameover, 1  ;if highlighted is 0 - make it 1. if highlighted is 1 - make it 0.
 		jmp skipchangehighlighted3
 
-		checkleftandandnotclickright:
+checkleftandandnotclickright:
 		mov clickedrightlasttime, 0
 
-		checkleft:
+checkleft:
 		invoke GetAsyncKeyState, VK_LEFT
 		cmp eax, 0
 		je skipchangehighlighted3anddidntclickleft
@@ -3503,7 +3504,7 @@ didntclickenter:
 		xor highlightedgameover, 1  ;if highlighted is 0 - make it 1. if highlighted is 1 - make it 0.
 		jmp skipchangehighlighted3
  
- skipchangehighlighted3anddidntclickleft:
+skipchangehighlighted3anddidntclickleft:
 		mov clickedleftlasttime, 0
  
 skipchangehighlighted3:
@@ -3515,7 +3516,7 @@ skipchangehighlighted3:
 		cmp bl, 0
 		je newgame
 		jmp mainmenu
-		;~~~~~~~~~~~~~~~~~~~~~~~~ END YOULOSE PROCEDURE
+;~~~~~~~~~~~~~~~~~~~~~~~~ END YOULOSE PROCEDURE
 
 		 
 resume:
@@ -3526,11 +3527,11 @@ resume:
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_GAME, NULL
 		ret
 
-		;~~~~~~~~~~~~~~~~~~~~~~~ PAUSE PROCEDURE
+;~~~~~~~~~~~~~~~~~~~~~~~ PAUSE PROCEDURE
 
 
 
-		pauseprocedure:
+pauseprocedure:
 		invoke GetAsyncKeyState, VK_ESCAPE		
 		cmp eax, 0
 		je pausescreenprocedureandnoclickescape
@@ -3595,12 +3596,12 @@ aftercheckup1:
 		jmp mainmenu
 
 
-		;~~~~~~~~~~~~~~~~~~~~~~~ END PAUSE PROCEDURE
+;~~~~~~~~~~~~~~~~~~~~~~~ END PAUSE PROCEDURE
 
 
 endoffunc:
- ret
- GetInputFromKeyboard ENDP
+		ret
+GetInputFromKeyboard ENDP
 
 
 
@@ -3609,7 +3610,7 @@ Update PROC
 		jl skipbreakpoint
 
 		mov al, al
-		skipbreakpoint:
+skipbreakpoint:
 		
 		cmp youlosestate, 1
 		je endupdate
@@ -3637,7 +3638,6 @@ Update PROC
 		invoke mciSendString, offset playlevelup, NULL, 0, NULL
 
 		
-		skiplevelup:
 		invoke TalDiv, 2500, difficulty_factor, 0
 		mov ebx, eax
 		mov eax, score
@@ -3648,8 +3648,9 @@ Update PROC
 		cmp edx, minimumUpdateTimer
 		jge gosettimer
 		mov edx, minimumUpdateTimer
-		gosettimer:
+gosettimer:
 		invoke SetTimer, hWnd, TM_UPDATE, edx , NULL
+skiplevelup:
 
 
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,0ffh
@@ -3663,7 +3664,7 @@ Update PROC
 		invoke ChangeBlock
 		ret
 
-		redrawblock:
+redrawblock:
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,CurrentColor
 endupdate:
                             
@@ -3897,6 +3898,9 @@ createblocks:
 		invoke LoadBitmap,eax,1345
 		mov HScoreBrickBackground,eax
 
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1346
+		mov HWhiteThemeBackground,eax
 
  
  
@@ -3919,12 +3923,12 @@ createblocks:
 		mov CurrentColor, dl
 		jmp endcreate
 
-		skipgetrandomcolor:
+skipgetrandomcolor:
 		mov eax, BlockType
 		mov CurrentColor, al
 
  
-		endcreate:
+endcreate:
  
 		ret
 Create ENDP
@@ -3936,7 +3940,10 @@ local hdc:HDC
 local hdcMem:HDC
 local hOld:HBITMAP
 local hbmMem:HBITMAP
+<<<<<<< HEAD
 local brushcolouring:HBRUSH
+=======
+>>>>>>> f4104f90dcfff467de43903b1fe719c927155a04
 		cmp youlosestate, 1
 		je youlosescreen
  
@@ -4016,7 +4023,7 @@ paintpausepicture:
  
  
  
-drawgame:                                                 
+drawgame:
                                                            
 		invoke  BeginPaint,      hWnd,   addr paint
 		mov hdc, eax
@@ -4034,12 +4041,23 @@ drawgame:
                                                                                                                            
 		cmp theme, BLACK_THEME
 		je blacktheme
+;white theme
 		invoke myOwnClearScreen, hdcMem
 		invoke myOwnClearSideBarGrid, hdcMem
 		invoke DrawGrid, hdcMem
 		invoke BuildSideBarBlock, 2,10,nextBlockType,0,nextBlockColor		
 		invoke DrawSideBarGrid, hdcMem, 400, 300
 		
+
+
+		invoke DrawImage, hdcMem, HWhiteThemeBackground, 400, 0
+		invoke DrawGrid, hdcMem
+		invoke BuildSideBarBlock, 3,10,nextBlockType,0,nextBlockColor		
+		invoke DrawSideBarGrid, hdcMem, 400, 300
+		
+
+
+		invoke SetTextColor, hdcMem, 0ffffffh	
 
 
 		invoke crt_strlen, offset instructions1
@@ -4051,15 +4069,23 @@ drawgame:
 		invoke crt_strlen, offset instructions4
 		invoke TextOut, hdcMem, 410, 710, offset instructions4, eax
 
+		
 
 		invoke SelectObject, hdcMem, titleFont
 		invoke crt_strlen, offset instructions0
 		invoke TextOut, hdcMem, 410, 600, offset instructions0, eax
 
+		invoke SelectObject, hdcMem, scoreTitleFont
+		invoke SetTextColor, hdcMem, 00a5efh ; ;ffa500
+		invoke crt_strlen, offset scoretext
+		invoke TextOut, hdcMem, 435, 0+20, offset scoretext, eax
 
+		invoke SetTextColor, hdcMem, 0ffffffh	
 
-		invoke DrawImage_WithMask, hdcMem, HScore, HScoreMask, 400, 0
-		invoke DrawNumber, hdcMem, score, 400,56
+		invoke DrawImage, hdcMem, HScoreBrickBackground, 407, 56+50
+		invoke DrawNumber, hdcMem, score, 450,67+50
+
+		
 		jmp afterthemes
                                                                                                                            
  
@@ -4100,7 +4126,6 @@ blacktheme:
 		invoke DrawNumber, hdcMem, score, 450,67+50
 
 		
-		;invoke DrawImage, hdcMem, HScore, 435, 0+50
 		invoke DrawEmptyBlackBlocks, hdcMem
                                                            
 afterthemes:
@@ -4111,6 +4136,9 @@ afterthemes:
 		invoke SelectObject,hdcMem, hOld
 		invoke DeleteObject,hbmMem
 		invoke DeleteDC,hdcMem
+
+		invoke GetLastError
+
 		invoke EndPaint, hWnd,  addr paint     
 		ret
  
@@ -4121,12 +4149,6 @@ Paint ENDP
  
  
 ProjectWndProc  PROC,   hWnd1:HWND, message:UINT, wParam:WPARAM, lParam:LPARAM
-local paint:PAINTSTRUCT
-local hdc:HDC
-local hdcMem:HDC
-local hOld:HBITMAP
-local hbmMem:HBITMAP
-local brushcolouring:HBRUSH
 		mov eax, hWnd1
 		mov hWnd, eax
 
@@ -4172,13 +4194,13 @@ update:
 		invoke Update
 		ret
  
- getinputfromkeyboard:
-	invoke GetFocus
-	cmp eax, hWnd
-	jne dontgetinputfromkeyboard
-	invoke GetInputFromKeyboard
-	dontgetinputfromkeyboard:
-	ret
+getinputfromkeyboard:
+		invoke GetFocus
+		cmp eax, hWnd
+		jne dontgetinputfromkeyboard
+		invoke GetInputFromKeyboard
+dontgetinputfromkeyboard:
+		ret
  
  
 timing:
@@ -4213,10 +4235,14 @@ LOCAL msg:MSG
  		invoke CreateWindowExA, WS_EX_COMPOSITED, addr ClassName, addr windowTitle, WS_SYSMENU, 0, 0, RealWindowWidth, WindowHeight, 0, 0, 0, 0 ;Create the window
 		mov hWnd, eax ;Save the handle
 		invoke ShowWindow, eax, SW_SHOW ;Show it
+<<<<<<< HEAD
 
 		invoke 
 
 		invoke SetTimer, hWnd, MAIN_TIMER_ID, 25, NULL ;Set the repaint timer
+=======
+		invoke SetTimer, hWnd, TM_PAINT, PAINT_TIME, NULL ;Set the repaint timer
+>>>>>>> f4104f90dcfff467de43903b1fe719c927155a04
 		invoke SetTimer, hWnd, TM_UPDATE, INITIAL_UPDATE_TIMER , NULL
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
 

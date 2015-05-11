@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿Build started 5/10/2015 5:06:34 PM.
      1>Project "C:\Users\Tal\Downloads\Tetris\Tetris\Tetris.vcxproj" on node 2 (Build target(s)).
      1>_MASM:
@@ -14,6 +15,12 @@
      1>Source.asm(4196): warning A6004: procedure argument or local not referenced : hOld
      1>Source.asm(4196): warning A6004: procedure argument or local not referenced : hbmMem
      1>Source.asm(4196): warning A6004: procedure argument or local not referenced : brushcolouring
+=======
+﻿Build started 5/10/2015 8:26:12 PM.
+     1>Project "C:\Users\Tal\Downloads\Tetris\Tetris\Tetris.vcxproj" on node 2 (Build target(s)).
+     1>ResourceCompile:
+         C:\Program Files (x86)\Windows Kits\8.1\bin\x86\rc.exe /D _UNICODE /D UNICODE /l"0x0409" /nologo /fo"Debug\Resource.res" Resource.rc 
+>>>>>>> f4104f90dcfff467de43903b1fe719c927155a04
        Link:
          C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Tal\Downloads\Tetris\Debug\Tetris.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\Tal\Downloads\Tetris\Debug\Tetris.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Tal\Downloads\Tetris\Debug\Tetris.lib" /MACHINE:X86 Debug\Resource.res
          Debug\Source.obj
@@ -22,4 +29,8 @@
 
 Build succeeded.
 
+<<<<<<< HEAD
 Time Elapsed 00:00:02.15
+=======
+Time Elapsed 00:00:01.50
+>>>>>>> f4104f90dcfff467de43903b1fe719c927155a04
