@@ -3201,8 +3201,6 @@ endoperations:
 		invoke GetAsyncKeyState, VK_DOWN
 		invoke GetAsyncKeyState, VK_RETURN
 		invoke GetAsyncKeyState, VK_ESCAPE
-
-		invoke Sleep, 10
 		ret
 endcheckanddidntclickescape:
 		mov clickedescapelasttime, 0
@@ -3932,15 +3930,13 @@ createblocks:
 Create ENDP
  
  
-Paint PROC, hWnd1:HWND, message:UINT, wParam:WPARAM, lParam:LPARAM
+Paint PROC
 local paint:PAINTSTRUCT
 local hdc:HDC
 local hdcMem:HDC
 local hOld:HBITMAP
 local hbmMem:HBITMAP
 local brushcolouring:HBRUSH
-		mov eax, hWnd1
-		mov hWnd, eax
 		cmp youlosestate, 1
 		je youlosescreen
  
@@ -4165,7 +4161,7 @@ painting:
 		invoke GetTickCount
 		mov ebx, eax
 		pusha
-		invoke Paint, hWnd, message, wParam, lParam
+		invoke Paint
 		popa
 		invoke GetTickCount
 		sub eax, ebx
@@ -4214,15 +4210,13 @@ LOCAL msg:MSG
 		mov wndcls.lpfnWndProc, eax ;Set the procedure that handles the window messages
 		invoke RegisterClassA, addr wndcls ;Register the class
 		invoke SetCursor, NULL
- 
-
-
-	
-		invoke CreateWindowExA, WS_EX_COMPOSITED, addr ClassName, addr windowTitle, WS_SYSMENU, 0, 0, RealWindowWidth, WindowHeight, 0, 0, 0, 0 ;Create the window
+ 		invoke CreateWindowExA, WS_EX_COMPOSITED, addr ClassName, addr windowTitle, WS_SYSMENU, 0, 0, RealWindowWidth, WindowHeight, 0, 0, 0, 0 ;Create the window
 		mov hWnd, eax ;Save the handle
-		add wndcls.style, WS_CLIPCHILDREN
 		invoke ShowWindow, eax, SW_SHOW ;Show it
-		invoke SetTimer, hWnd, MAIN_TIMER_ID, 20, NULL ;Set the repaint timer
+
+		invoke 
+
+		invoke SetTimer, hWnd, MAIN_TIMER_ID, 25, NULL ;Set the repaint timer
 		invoke SetTimer, hWnd, TM_UPDATE, INITIAL_UPDATE_TIMER , NULL
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
 
