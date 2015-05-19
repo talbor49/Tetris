@@ -37,20 +37,20 @@ option casemap :none                                      ; case sensitive
 Todo list:
 		//1.Change window width and height
 		2.Make different game modes
-		3.More sound effects
+		V3.More sound effects
 		4.Hurray on clear line
 		5.Add online fights
 		6.Add difficultys
-		7.Fix score
+		V7.Fix score
 		8.Add leaderboards
 		9.Make better design
 		//10. Make fullscreen
 		11. Add an option to store a block for later
 		12. Let you flip block even if you are near a wall
-		13. Fix resolution of blocks - maybe implement images instead of rectangles
+		V13. Fix resolution of blocks - maybe implement images instead of rectangles
 		14. Add multiplayer on same computer
-		15. Fix youlose
-		16. Add an option to change music
+		V15. Fix youlose
+		
 		@
  
  
@@ -69,8 +69,11 @@ Todo list:
 		INPUT_FROM_KEYBOARD_DELAY_IN_MENUS equ 20
 		INPUT_FROM_KEYBOARD_DELAY_IN_GAME equ 90
 		INPUT_FROM_KEYBOARD_DELAY_IN_OPTIONS equ 20
-		PAINT_TIME equ 20
+		PAINT_TIME equ 90
+
+
 		.data
+		threadwhattodo DWORD 0
 		clickedescapelasttime DWORD 0
 		clickedenterlasttime DWORD 0
 		clickeddownlasttime DWORD 0
@@ -2631,40 +2634,7 @@ ChangeBlock PROC
 
 		invoke ClearSideBarGrid
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,CurrentColor
-		COMMENT @
-		mov esi, offset next2blocks
-		mov eax, DWORD ptr [esi]
-		mov BlockType, eax
-		add esi, 4
-		mov al, BYTE ptr [esi]
-		mov CurrentColor, al
- 
-		push BlockType
-		xor eax, eax
-		mov al, CurrentColor
-		push eax
- 
-		mov edi, offset next2blocks
-		mov esi, offset next2blocks
-		add esi, 5
-		mov ecx, 10
-		rep movsb
- 
-                           
- 
-		invoke GetRandomBlock
-		mov edi, offset next2blocks
-		add edi, 10
-		mov eax, BlockType
-		mov DWORD ptr [edi], eax
-		add edi, 4
-		mov al, CurrentColor
-		mov BYTE ptr [edi], al
- 
-		pop eax
-		mov CurrentColor, al
-		pop BlockType @
-
+		
 		push nextBlockType
 		xor eax, eax
 		mov al, nextBlockColor
@@ -2678,7 +2648,7 @@ ChangeBlock PROC
 		mov CurrentColor, al
 		pop BlockType
  
-
+		
 		invoke TalDiv, WindowWidth, BLOCK_SIZE, 0
 		invoke TalDiv, eax, 2, 0
 		mov ebx, eax
@@ -2686,13 +2656,9 @@ ChangeBlock PROC
 		invoke ReadGrid, ebx, edx
 		cmp al, 0ffh
 		je endfunc
-		mov youlosestate, 1    		          
-		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
+		mov youlosestate, 1
+		    		          
 		invoke mciSendString, offset playGameOverMusic, NULL, 0, NULL
-		invoke GetAsyncKeyState, VK_DOWN
-		invoke GetAsyncKeyState, VK_RETURN
-		invoke GetAsyncKeyState, VK_LEFT
-		invoke GetAsyncKeyState, VK_RIGHT
 endfunc:
 
 		invoke ClearFullLines
@@ -3073,6 +3039,7 @@ About PROC
                            
 checkbuttons:
 		invoke GetAsyncKeyState, VK_ESCAPE		
+		shr eax, 15
 		cmp eax, 0
 		je didntclickescapeabout
 		mov eax, clickedescapelasttime
@@ -3087,6 +3054,7 @@ didntclickescapeabout:
 
 checkenter:
 		invoke GetAsyncKeyState, VK_RETURN
+		shr eax, 15
 		cmp eax, 0
 		je didntclickenteronabout
 		mov eax, clickedenterlasttime
@@ -3190,7 +3158,8 @@ skipleft:
 		invoke waveOutSetVolume, NULL, volume
  
 endoperations:
-		invoke GetAsyncKeyState, VK_ESCAPE		
+		invoke GetAsyncKeyState, VK_ESCAPE	
+	    shr eax, 15	
 		cmp eax, 0
 		je endcheckanddidntclickescape
 		mov eax, clickedescapelasttime
@@ -3283,8 +3252,8 @@ GetInputFromKeyboard PROC
 		je about
 
 		;~~~~~~~~~~~ pause procedure
-		invoke GetAsyncKeyState, VK_ESCAPE
-		
+		invoke GetAsyncKeyState, VK_ESCAPE	
+		shr eax, 15	
 		cmp eax, 0
 		je skippause1anddidntclickescape
 		mov eax, clickedescapelasttime
@@ -3293,7 +3262,6 @@ GetInputFromKeyboard PROC
 		je skippause1
 		mov PauseState, 1
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
-		;invoke PlaySound, NULL, NULL, NULL       
 		invoke mciSendString, offset freezeBackgroundMusic, NULL, 0, NULL
 
 		ret
@@ -3509,6 +3477,7 @@ skipchangehighlighted3anddidntclickleft:
  
 skipchangehighlighted3:
 		invoke GetAsyncKeyState, VK_RETURN
+		shr eax, 15
 		cmp eax, 0
 		je endoffunc
 		mov bl, highlightedgameover
@@ -3532,7 +3501,8 @@ resume:
 
 
 pauseprocedure:
-		invoke GetAsyncKeyState, VK_ESCAPE		
+		invoke GetAsyncKeyState, VK_ESCAPE	
+		shr eax, 15	
 		cmp eax, 0
 		je pausescreenprocedureandnoclickescape
 		mov eax, clickedescapelasttime
@@ -3584,6 +3554,7 @@ aftercheckup1andnoclickup:
 aftercheckup1:
  
 		invoke GetAsyncKeyState, VK_RETURN
+		shr eax, 15
 		cmp eax, 0
 		je endoffunc
  
@@ -3940,10 +3911,9 @@ local hdc:HDC
 local hdcMem:HDC
 local hOld:HBITMAP
 local hbmMem:HBITMAP
-<<<<<<< HEAD
+
 local brushcolouring:HBRUSH
-=======
->>>>>>> f4104f90dcfff467de43903b1fe719c927155a04
+
 		cmp youlosestate, 1
 		je youlosescreen
  
@@ -4044,9 +4014,6 @@ drawgame:
 ;white theme
 		invoke myOwnClearScreen, hdcMem
 		invoke myOwnClearSideBarGrid, hdcMem
-		invoke DrawGrid, hdcMem
-		invoke BuildSideBarBlock, 2,10,nextBlockType,0,nextBlockColor		
-		invoke DrawSideBarGrid, hdcMem, 400, 300
 		
 
 
@@ -4108,7 +4075,7 @@ blacktheme:
 		invoke TextOut, hdcMem, 410, 690, offset instructions3, eax
 		invoke crt_strlen, offset instructions4
 		invoke TextOut, hdcMem, 410, 710, offset instructions4, eax
-
+		
 		
 
 		invoke SelectObject, hdcMem, titleFont
@@ -4136,17 +4103,15 @@ afterthemes:
 		invoke SelectObject,hdcMem, hOld
 		invoke DeleteObject,hbmMem
 		invoke DeleteDC,hdcMem
-
-		invoke GetLastError
-
 		invoke EndPaint, hWnd,  addr paint     
 		ret
  
 Paint ENDP
  
  
+
  
- 
+
  
 ProjectWndProc  PROC,   hWnd1:HWND, message:UINT, wParam:WPARAM, lParam:LPARAM
 		mov eax, hWnd1
@@ -4180,14 +4145,8 @@ returnnonzero:
 		ret
  
 painting:
-		invoke GetTickCount
-		mov ebx, eax
-		pusha
 		invoke Paint
-		popa
-		invoke GetTickCount
-		sub eax, ebx
-
+		
 		ret
  
 update:
@@ -4235,18 +4194,14 @@ LOCAL msg:MSG
  		invoke CreateWindowExA, WS_EX_COMPOSITED, addr ClassName, addr windowTitle, WS_SYSMENU, 0, 0, RealWindowWidth, WindowHeight, 0, 0, 0, 0 ;Create the window
 		mov hWnd, eax ;Save the handle
 		invoke ShowWindow, eax, SW_SHOW ;Show it
-<<<<<<< HEAD
 
-		invoke 
-
-		invoke SetTimer, hWnd, MAIN_TIMER_ID, 25, NULL ;Set the repaint timer
-=======
 		invoke SetTimer, hWnd, TM_PAINT, PAINT_TIME, NULL ;Set the repaint timer
->>>>>>> f4104f90dcfff467de43903b1fe719c927155a04
+
 		invoke SetTimer, hWnd, TM_UPDATE, INITIAL_UPDATE_TIMER , NULL
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
 
-                           
+
+		                          
  
  
 msgLoop:
