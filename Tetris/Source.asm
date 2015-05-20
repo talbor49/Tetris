@@ -3053,7 +3053,6 @@ itoa ENDP
 DrawNumber PROC, hdc:HDC, num:DWORD, x:DWORD, y:DWORD
 		invoke itoa, num, offset scorestring
 		push eax		
-		;invoke SetTextColor, hdc, 0ffffffh
 		invoke SelectObject, hdc, scoreFont
 		pop eax
 		invoke TextOut, hdc, x,y, offset scorestring, eax
@@ -3586,6 +3585,7 @@ aftercheckup1andnoclickup:
 aftercheckup1:
  
 		invoke GetAsyncKeyState, VK_RETURN
+		shr eax, 15
 		cmp eax, 0
 		je endoffunc
  
