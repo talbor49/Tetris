@@ -37,19 +37,19 @@ option casemap :none                                      ; case sensitive
 Todo list:
 		//1.Change window width and height
 		2.Make different game modes
-		V3.More sound effects
-		4.Hurray on clear line
+		V 3.More sound effects
+		//4.Hurray on clear line
 		5.Add online fights
 		6.Add difficultys
-		V7.Fix score
+		V 7.Fix score
 		8.Add leaderboards
 		9.Make better design
 		//10. Make fullscreen
 		11. Add an option to store a block for later
 		12. Let you flip block even if you are near a wall
-		V13. Fix resolution of blocks - maybe implement images instead of rectangles
+		V 13. Fix resolution of blocks - maybe implement images instead of rectangles
 		14. Add multiplayer on same computer
-		V15. Fix youlose
+		V 15. Fix youlose
 		
 		@
  
@@ -69,8 +69,8 @@ Todo list:
 		INPUT_FROM_KEYBOARD_DELAY_IN_MENUS equ 20
 		INPUT_FROM_KEYBOARD_DELAY_IN_GAME equ 90
 		INPUT_FROM_KEYBOARD_DELAY_IN_OPTIONS equ 20
-		PAINT_TIME equ 90
-
+		PAINT_TIME equ 50
+		ENEMY_GRID_OFFSET equ 700
 
 		.data
 		threadwhattodo DWORD 0
@@ -89,14 +89,14 @@ Todo list:
 		changedthemelasttime DWORD 0
 		timeLastPutDown DWORD 0
 		instructions0 db "Game Controls", 0
-		instructions1 db "Right or Left buttons   - move block.",0
+		instructions1 db "Right and Left buttons   - move block.",0
 		instructions2 db "Up button   - rotate block.", 0
-		instructions3 db "Down button  - move the block down faster.", 0 
+		instructions3 db "Down button - move the block down faster.", 0 
 		instructions4 db "Spacebar - instantly place block.",0
-scoretext db "Score: ",0
+		scoretext db "Score: ",0
 		hWnd HWND ?
 		BitmapsBodyGuard1 db 10000 dup(0)
-		randomColor db 0
+		randomColor db 1
 		timesDidntCheckUp DWORD 0
 		marginBetweenButtons DWORD ?
 		WindowWidth DWORD 400
@@ -145,13 +145,10 @@ scoretext db "Score: ",0
 		HChangeVolume HBITMAP ?
 		HChangeVolumeMask HBITMAP ?
 		HChangeTheme HBITMAP ?
-		HChangeThemeMask HBITMAP ?
- 
+		HChangeThemeMask HBITMAP ? 
 		HBlackThemeBackground HBITMAP ?
 		HWhiteThemeBackground HBITMAP ?
 		HScoreBrickBackground HBITMAP ?
-
-
 		HBlock0 HBITMAP ?
 		HBlock1 HBITMAP ?
 		HBlock2 HBITMAP ?
@@ -166,7 +163,6 @@ scoretext db "Score: ",0
 		titleFont HFONT ?
 		scoreTitleFont HFONT ?
 		theme DWORD BLACK_THEME
-		AnimateHWnd HWND ?
 		offsetinstring DWORD 0
 		created DWORD 0
 		score DWORD 0
@@ -200,8 +196,9 @@ scoretext db "Score: ",0
 		youlosestate db 0
 		backupecx DWORD ?
 		next2blocks db 1000 dup(0ffh)
-		grid DB 10000 dup(00FFh)
+		grid DB 1000 dup(00FFh)
 		sidebargrid DB 10000 dup (00FFh)
+		enemygrid db 1000 dup(00ffh)
 		BlockX DWORD   0
 		BlockY DWORD   0
 		ClassName          DB     "Tetris",0
@@ -378,18 +375,26 @@ ReadGrid PROC, XIndex:DWORD, YIndex:DWORD
 		add ebx, XIndex
 		xor eax, eax
 		mov al, BYTE ptr [ebx]
-
-		cmp al, 7
-		jl donotbreakpoint
-
-		mov al, al
-donotbreakpoint:
-
 		ret
 ReadGrid ENDP
  
  
+ReadEnemyGrid PROC, XIndex:DWORD, YIndex:DWORD
+	;Returns grid[XIndex][YIndex]
+	mov ebx, offset enemygrid
  
+	invoke TalDiv, WindowWidth, BLOCK_SIZE,0
+	mov edx, eax
+ 
+	mov eax, YIndex
+                 
+	imul edx
+	add ebx, eax
+	add ebx, XIndex
+	xor eax, eax
+	mov al, BYTE ptr [ebx]
+	ret
+ReadEnemyGrid ENDP
  
  
  
@@ -527,6 +532,48 @@ Close PROC
 		ret
 Close ENDP
  
+DrawEnemyGrid PROC, hdc:HDC
+local Hbmp:HBITMAP
+ 
+		;Draws all the blocks on the grid
+ 
+		mov ebx, 0
+		mov edx, 0
+		invoke TalDiv, WindowHeight, BLOCK_SIZE,0
+		mov ecx, eax
+loop00:
+		mov backupecx, ecx
+		invoke TalDiv, WindowWidth, BLOCK_SIZE,0
+		mov ecx, eax
+		mov ebx, 0
+loop01:
+		pusha
+		pusha
+		invoke ReadEnemyGrid, ebx, edx
+		cmp al, 00FFh
+		je skipdrawpopa
+		invoke GetColor, al
+		mov Hbmp, eax
+ 
+		popa
+		imul ebx, BLOCK_SIZE
+		imul edx, BLOCK_SIZE
+		add ebx, ENEMY_GRID_OFFSET
+		;invoke BUILDRECT, ebx, edx, BLOCK_SIZE-1, BLOCK_SIZE-1, hdc, brush
+		invoke DrawImage, hdc, Hbmp, ebx, edx
+		jmp skipdraw
+skipdrawpopa:
+		popa
+                           
+skipdraw:
+		popa
+		inc ebx
+		loop loop01
+		mov ecx, backupecx
+		inc edx
+		loop loop00
+		ret
+DrawEnemyGrid ENDP
  
 DrawGrid PROC, hdc:HDC
 local Hbmp:HBITMAP
@@ -2942,6 +2989,50 @@ skipdraw:
 
 		ret
 DrawEmptyBlackBlocks ENDP
+
+
+DrawEmptyBlackBlocksEnemy PROC, hdc:HDC
+
+		;Draws all the blocks on the grid
+ 
+		mov ebx, 0
+		mov edx, 0
+		invoke TalDiv, WindowHeight, BLOCK_SIZE,0
+		mov ecx, eax
+loop00:
+		mov backupecx, ecx
+		invoke TalDiv, WindowWidth, BLOCK_SIZE,0
+		mov ecx, eax
+		mov ebx, 0
+loop01:
+		pusha
+		pusha
+		invoke ReadEnemyGrid, ebx, edx
+		cmp al, 0FFh
+		jne skipdrawpopa		
+ 
+		popa
+		imul ebx, BLOCK_SIZE
+		imul edx, BLOCK_SIZE
+		add ebx, ENEMY_GRID_OFFSET
+		invoke DrawImage, hdc, HBlock255, ebx, edx
+		jmp skipdraw
+skipdrawpopa:
+		popa
+                           
+skipdraw:
+		popa
+		inc ebx
+		loop loop01
+
+		mov ecx, backupecx
+		inc edx
+		loop loop00
+		ret
+
+
+		ret
+DrawEmptyBlackBlocksEnemy ENDP
  
 
 
@@ -4018,6 +4109,7 @@ drawgame:
 
 		invoke DrawImage, hdcMem, HWhiteThemeBackground, 400, 0
 		invoke DrawGrid, hdcMem
+		invoke DrawEnemyGrid, hdcMem
 		invoke BuildSideBarBlock, 3,10,nextBlockType,0,nextBlockColor		
 		invoke DrawSideBarGrid, hdcMem, 400, 300
 		
@@ -4058,9 +4150,10 @@ drawgame:
 blacktheme:
 		invoke DrawImage, hdcMem, HBlackThemeBackground, 400, 0
 		invoke DrawGrid, hdcMem
+		invoke DrawEnemyGrid, hdcMem
 		invoke BuildSideBarBlock, 3,10,nextBlockType,0,nextBlockColor		
 		invoke DrawSideBarGrid, hdcMem, 400, 300
-		
+
 
 
 		invoke SetTextColor, hdcMem, 0ffffffh	
@@ -4091,9 +4184,9 @@ blacktheme:
 		invoke DrawImage, hdcMem, HScoreBrickBackground, 407, 56+50
 		invoke DrawNumber, hdcMem, score, 450,67+50
 
-		
+
 		invoke DrawEmptyBlackBlocks, hdcMem
-                                                           
+        invoke DrawEmptyBlackBlocksEnemy, hdcMem                                     
 afterthemes:
 		
 
@@ -4194,14 +4287,12 @@ LOCAL msg:MSG
 		mov hWnd, eax ;Save the handle
 		invoke ShowWindow, eax, SW_SHOW ;Show it
 
-		invoke SetTimer, hWnd, TM_PAINT, PAINT_TIME, NULL ;Set the repaint timer
 
+		invoke SetTimer, hWnd, TM_PAINT, PAINT_TIME, NULL ;Set the repaint timer
 		invoke SetTimer, hWnd, TM_UPDATE, INITIAL_UPDATE_TIMER , NULL
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
 
 
-		                          
- 
  
 msgLoop:
  
