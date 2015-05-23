@@ -28,6 +28,9 @@
     <ClInclude Include="Resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Documents\Visual Studio 2013\Projects\asmSockets\asmSockets\winsock2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\..\..\..\..\Downloads\PauseScreen.bmp">

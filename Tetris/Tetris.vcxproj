@@ -83,6 +83,7 @@
     <ResourceCompile Include="Resource.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\Documents\Visual Studio 2013\Projects\asmSockets\asmSockets\winsock2.h" />
     <ClInclude Include="Resource.h" />
   </ItemGroup>
   <ItemGroup>

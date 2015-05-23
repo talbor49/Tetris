@@ -18,7 +18,8 @@ option casemap :none                                      ; case sensitive
 		include \masm32\include\msimg32.inc
 		includelib \masm32\lib\msimg32.lib
  
- 
+		include \masm32\include\Ws2_32.inc
+		includelib \masm32\lib\Ws2_32.lib
 		include \masm32\include\dialogs.inc      ; macro file for dialogs
 		include \masm32\macros\macros.asm              ; masm32 macro file
 		includelib \masm32\lib\gdi32.lib
@@ -71,8 +72,16 @@ Todo list:
 		INPUT_FROM_KEYBOARD_DELAY_IN_OPTIONS equ 20
 		PAINT_TIME equ 50
 		ENEMY_GRID_OFFSET equ 700
+		WM_SOCKET equ WM_USER+100
+		ACM_OPEN equ 0400h + 100
+
 
 		.data
+		enemygridoffset DWORD ?
+		AnimateHWnd HWND ?
+		avipath db "filemove.avi",0
+		waiting_for_oponnent db FALSE
+		wsadata WSADATA <>
 		threadwhattodo DWORD 0
 		clickedescapelasttime DWORD 0
 		clickedenterlasttime DWORD 0
@@ -88,6 +97,7 @@ Todo list:
 		upwasclickedlasttime DWORD 0
 		changedthemelasttime DWORD 0
 		timeLastPutDown DWORD 0
+		erroroccured db "An error ocurred while trying to connect to server.",0
 		instructions0 db "Game Controls", 0
 		instructions1 db "Right and Left buttons   - move block.",0
 		instructions2 db "Up button   - rotate block.", 0
@@ -149,6 +159,9 @@ Todo list:
 		HBlackThemeBackground HBITMAP ?
 		HWhiteThemeBackground HBITMAP ?
 		HScoreBrickBackground HBITMAP ?
+		HPlayOnline HBITMAP ?
+		HPlayOnlineMask HBITMAP ?
+		HWaitingForOpponent HBITMAP ?
 		HBlock0 HBITMAP ?
 		HBlock1 HBITMAP ?
 		HBlock2 HBITMAP ?
@@ -196,17 +209,38 @@ Todo list:
 		youlosestate db 0
 		backupecx DWORD ?
 		next2blocks db 1000 dup(0ffh)
-		grid DB 1000 dup(00FFh)
-		sidebargrid DB 10000 dup (00FFh)
-		enemygrid db 1000 dup(00ffh)
+		grid DB 1024 dup(00FFh)
+		sidebargrid DB 1024 dup (00FFh)
+		enemygrid db 1024 dup(00ffh)
+		buffer db 1024 dup(0)
 		BlockX DWORD   0
 		BlockY DWORD   0
 		ClassName          DB     "Tetris",0
 		windowTitle      DB       "Tetris",0
  
+		sock DWORD ?
+		sin sockaddr_in <>
+		clientsin sockaddr_in <>
+		IPAddress db "149.78.95.151",0 
+		Port dd 5006                    
+		text db "placeholder",0
+		textoffset DWORD ?
+		getmeanopponent db "Get me an opponent",0
+		wanttoconnectwithsomeone db "Want to connect with someone?",0
+		yesiwanttoconnect db "Yes, I do want to connect",0
+		get_ready_for_ip db "Get ready for IP.",0
+		expecting_IP db FALSE
+		expecting_PORT db FALSE
+		available_data db 100 dup(0)        ; the amount of data available from the socket 
+
+		clientip db 20 dup(0)
+		clientport dd 0
+		connected_to_peer db FALSE
+
 		startTime DWORD ?
 		clickedspacelasttime DWORD 0
  
+		waiting_for_opponent db FALSE
 		.code
  
 GetRandomNumber PROC,   blen:BYTE,PointToBuffer:PLONG
@@ -217,6 +251,7 @@ local hprovide:HANDLE
 		ret
 GetRandomNumber ENDP
  
+
 TalDiv PROC, divided:DWORD, divisor:DWORD, amountToAdd:DWORD
 		pusha
 		mov eax, divided
@@ -230,7 +265,15 @@ TalDiv PROC, divided:DWORD, divisor:DWORD, amountToAdd:DWORD
 		ret
 TalDiv ENDP
  
+ sendgrid PROC
 
+ again:
+	invoke sendto,sock, offset grid, 1024, 0, offset clientsin, sizeof clientsin
+	invoke Sleep, 100
+	jmp again
+
+ ret
+ sendgrid ENDP
  
 GetColor PROC, index:BYTE
 		;Get color by index
@@ -249,7 +292,7 @@ startgetcolor:
 		je returnblock5
 		cmp index, 6
 		je returnblock6
-		int 1Bh ;ERROR
+		
 returnblock0:
 		mov eax, HBlock0
 		ret
@@ -381,7 +424,7 @@ ReadGrid ENDP
  
 ReadEnemyGrid PROC, XIndex:DWORD, YIndex:DWORD
 	;Returns grid[XIndex][YIndex]
-	mov ebx, offset enemygrid
+	mov ebx, enemygridoffset
  
 	invoke TalDiv, WindowWidth, BLOCK_SIZE,0
 	mov edx, eax
@@ -478,7 +521,9 @@ myOwnClearSideBarGrid ENDP
  
 Close PROC 
 ;Release resources before closing
-
+		
+		invoke closesocket, sock
+		invoke WSACleanup
 		invoke DeleteObject, HPauseScreen
 		invoke DeleteObject, HAboutPage
 		invoke DeleteObject, HStartScreen
@@ -527,7 +572,12 @@ Close PROC
 		invoke DeleteObject, HBlock4
 		invoke DeleteObject, HBlock5
 		invoke DeleteObject, HBlock6
- 
+		invoke DeleteObject, HPlayOnline
+		invoke DeleteObject, HPlayOnlineMask
+		invoke DeleteObject, HWaitingForOpponent
+
+
+
 		invoke ExitProcess, 0
 		ret
 Close ENDP
@@ -2776,7 +2826,7 @@ DrawMainMenuButtons PROC, hdc:HDC, highlightedbutton:BYTE
 		sub esi, BUTTONS_MARGIN
 		add esi, 100
  
-		invoke TalDiv, WindowHeight, 2, -30
+		invoke TalDiv, WindowHeight, 2, -75
 		mov edx, eax
 		xor eax, eax
 		mov al, highlightedbutton
@@ -2787,14 +2837,18 @@ DrawMainMenuButtons PROC, hdc:HDC, highlightedbutton:BYTE
 		invoke DrawImage_WithMask_WithResize, hdc, HHighLightBox, HHighLightMask, esi, edx, 240,60,0,0, 240,60 ;;;
 		pop esi
  
-		invoke TalDiv, WindowHeight, 2, -30
+		invoke TalDiv, WindowHeight, 2, -75
 		mov edx, eax
 		pusha
 		invoke DrawImage_WithMask_WithResize, hdc, HNewGame, HNewGameMask, esi, edx, 240,60,0,0, 240,60
 		popa
 		add edx, marginBetweenButtons
  
- 
+		pusha
+		invoke DrawImage_WithMask_WithResize, hdc, HPlayOnline, HPlayOnlineMask, esi, edx, 240,60,0,0, 240,60
+		popa
+		add edx, marginBetweenButtons
+
 		pusha
 		invoke DrawImage_WithMask_WithResize, hdc, HOptions, HOptionsMask, esi, edx, 240,60,0,0, 240,60
 		popa
@@ -2805,6 +2859,7 @@ DrawMainMenuButtons PROC, hdc:HDC, highlightedbutton:BYTE
 		popa
 		add edx, marginBetweenButtons
  
+
  
 		invoke DrawImage_WithMask_WithResize, hdc, HExit, HExitMask, esi, edx, 240,60,0,0, 240,60
  
@@ -2816,6 +2871,46 @@ DrawMainMenuButtons PROC, hdc:HDC, highlightedbutton:BYTE
 DrawMainMenuButtons ENDP
  
  
+ 
+PlayOnline PROC
+		mov startscreen, 0
+		mov waiting_for_opponent, TRUE
+		mov clickedenterlasttime, 1
+
+		invoke WSAStartup, 101h,addr wsadata 
+		.if eax!=NULL 
+		    invoke MessageBox, NULL, addr erroroccured, NULL, MB_OK 
+		.else 
+			xor eax, eax ;<The initialization is successful. You may proceed with other winsock calls> 
+		.endif
+
+		invoke socket,AF_INET,SOCK_DGRAM,0     ; Create a stream socket for internet use 
+		.if eax!=INVALID_SOCKET 
+			mov sock,eax 
+		.else 
+		    invoke MessageBox, NULL, addr erroroccured, NULL, MB_OK 			
+		.endif
+
+		invoke WSAAsyncSelect, sock, hWnd,WM_SOCKET, FD_CONNECT+FD_READ+FD_CLOSE 
+					; Register interest in connect, read and close events. 
+		.if eax==SOCKET_ERROR 
+		    invoke MessageBox, NULL, addr erroroccured, NULL, MB_OK 			
+		.else 
+			xor eax, eax  ;........ 
+		.endif
+
+
+		mov sin.sin_family, AF_INET 
+		invoke htons, Port                    ; convert port number into network byte order first 
+		mov sin.sin_port,ax                  ; note that this member is a word-size param. 
+		invoke inet_addr, addr IPAddress    ; convert the IP address into network byte order 
+		mov sin.sin_addr,eax 
+		invoke crt_strlen, offset getmeanopponent
+		invoke sendto,sock, offset getmeanopponent, eax, 0, offset sin, sizeof sin
+
+
+ret
+PlayOnline ENDP
  
 DrawOptionsButtons PROC, hdc:HDC, highlightedbutton:BYTE, circlex:DWORD, selectedTheme:DWORD
  
@@ -3299,6 +3394,7 @@ NewGame PROC
 		mov startscreen, 0
 		mov youlosestate, 0
 		mov optionscreenstate, 0
+		mov waiting_for_opponent, FALSE
 		mov score, 0
 		mov highlighted, 0
 		mov PauseState ,0
@@ -3340,6 +3436,8 @@ GetInputFromKeyboard PROC
 		je pauseprocedure
 		cmp aboutpage, 1
 		je about
+		cmp waiting_for_opponent, TRUE
+		je waitingforopponent
 
 		;~~~~~~~~~~~ pause procedure
 		invoke GetAsyncKeyState, VK_ESCAPE	
@@ -3466,7 +3564,7 @@ startscreenprocedure:
 		mov clickeddownlasttime, 1
 		cmp eax, 1
 		je checkup
-		cmp highlighted, 3
+		cmp highlighted, 4
 		je resethighlighted
 		inc highlighted
 		jmp aftercheckup
@@ -3488,7 +3586,7 @@ checkup:
 		dec highlighted
 		jmp aftercheckup
 resetuphighlighted:
-		mov highlighted, 3
+		mov highlighted, 4
 		jmp aftercheckup
 aftercheckupandnoclickup:
 		mov clickeduplasttime, 0
@@ -3507,8 +3605,10 @@ aftercheckup:
 		cmp highlighted, 0
 		je newgame
 		cmp highlighted, 1
-		je options
+		je playonline
 		cmp highlighted, 2
+		je options
+		cmp highlighted, 3
 		je about              
 		invoke Close
 
@@ -3519,6 +3619,10 @@ didntclickenter:
 
 newgame:
 		invoke NewGame
+		ret
+
+playonline:
+		invoke PlayOnline
 		ret
 
 options:
@@ -3532,7 +3636,6 @@ about:
 mainmenu:
 		invoke MainMenu
 		ret
-
 
 ;~~~~~~~~~~~~~~~~~~~~~~~~ START YOULOSE PROCEDURE
 
@@ -3658,8 +3761,20 @@ aftercheckup1:
 
 
 ;~~~~~~~~~~~~~~~~~~~~~~~ END PAUSE PROCEDURE
+waitingforopponent:
 
+		checkescape:
+		invoke GetAsyncKeyState, VK_ESCAPE
+		shr eax, 15
+		cmp eax, 0
+		jne leavewaitingforopponent	
+		jmp endoffunc
 
+		leavewaitingforopponent:
+		invoke closesocket, sock
+		invoke WSACleanup 
+		mov startscreen, 1
+		mov waiting_for_opponent, FALSE
 endoffunc:
 		ret
 GetInputFromKeyboard ENDP
@@ -3686,6 +3801,9 @@ skipbreakpoint:
 		je endupdate
                                
 		cmp PauseState, 1
+		je endupdate
+
+		cmp waiting_for_opponent, 1
 		je endupdate
 
 
@@ -3734,7 +3852,9 @@ endupdate:
 Update ENDP
  
 Create PROC
- 
+		cmp created, 1
+		je endcreate
+		mov enemygridoffset, offset enemygrid
 		mov created, 1
 		mov startscreen, 1
 		mov ebx, offset next2blocks
@@ -3963,8 +4083,17 @@ createblocks:
 		invoke LoadBitmap,eax,1346
 		mov HWhiteThemeBackground,eax
 
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1347
+		mov HPlayOnline,eax
  
+		invoke Get_Handle_To_Mask_Bitmap, HPlayOnline, 00ffffffh
+		mov HPlayOnlineMask, eax
  
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1348
+		mov HWaitingForOpponent,eax
+
 		mov BlockMode, 0
 
 		invoke GetRandomNumber, 4, offset randombuffer
@@ -4002,7 +4131,6 @@ local hdcMem:HDC
 local hOld:HBITMAP
 local hbmMem:HBITMAP
 
-local brushcolouring:HBRUSH
 
 		cmp youlosestate, 1
 		je youlosescreen
@@ -4016,9 +4144,14 @@ local brushcolouring:HBRUSH
 		cmp aboutpage, 1
 		je about
  
+		cmp waiting_for_opponent, TRUE
+		je waitingforoponnent
+
 		cmp PauseState, 1
 		jne drawgame
- 
+		
+		
+
 		jmp paintpausepicture
            
 startscreenprocedure:
@@ -4052,7 +4185,12 @@ about:
 		invoke EndPaint, hWnd, addr paint
 		ret
  
- 
+ waitingforoponnent:
+		invoke BeginPaint, hWnd, addr paint
+		mov hdc, eax
+		invoke DrawImage, hdc, HWaitingForOpponent, 0,0
+		invoke EndPaint, hWnd, addr paint
+		ret
  
  
 youlosescreen:
@@ -4201,8 +4339,82 @@ afterthemes:
 Paint ENDP
  
  
+ResizeWindow PROC
+LOCAL wndcls:WNDCLASSA ; Class struct for the window
+LOCAL msg:MSG
+		invoke DestroyWindow, hWnd
+		mov eax, RealWindowWidth
+		add eax, 400
+		mov RealWindowWidth, eax
+ 		invoke CreateWindowExA, WS_EX_COMPOSITED, addr ClassName, addr windowTitle, WS_SYSMENU, 0, 0, eax, WindowHeight, 0, 0, 0, 0 ;Create the window
+		mov hWnd, eax ;Save the handle
+		invoke ShowWindow, eax, SW_SHOW ;Show it
 
+		invoke WSAAsyncSelect, sock, hWnd,WM_SOCKET, FD_CONNECT+FD_READ+FD_CLOSE 
+					; Register interest in connect, read and close events. 
+		.if eax==SOCKET_ERROR 
+		    invoke MessageBox, NULL, addr erroroccured, NULL, MB_OK 			
+		.else 
+			xor eax, eax  ;........ 
+		.endif
+
+		invoke SetTimer, hWnd, TM_PAINT, PAINT_TIME, NULL ;Set the repaint timer
+		invoke SetTimer, hWnd, TM_UPDATE, INITIAL_UPDATE_TIMER , NULL
+
+		invoke NewGame
+
+		;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ NEW GAME
+		COMMENT @
+
+		mov eax, CircleX
+		sub eax, 43
+		imul eax, 118
+		push ax
+		rol eax, 16
+		pop ax
+		rol eax, 16
+		mov volume, eax
+		invoke waveOutSetVolume, NULL, volume
+
+		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_GAME, NULL
+
+		invoke ClearGrid
+		invoke ClearSideBarGrid
+		invoke mciSendString, offset restartBackgroundMusic, NULL, 0, NULL
+		invoke mciSendString, offset playBackgroundMusic, NULL, 0, NULL
+
+
+		invoke GetRandomBlock
+		mov eax, BlockType
+		mov nextBlockType, eax
+		mov al, CurrentColor
+		mov nextBlockColor, al
+		mov startscreen, 0
+		mov youlosestate, 0
+		mov optionscreenstate, 0
+		mov score, 0
+		mov highlighted, 0
+		mov PauseState ,0
  
+		invoke GetRandomBlock
+		
+		ret
+
+skipgetrandomcolor:
+		mov eax, BlockType
+		mov CurrentColor, al
+
+		ret
+		@
+		;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ NAME GAME ENDP
+		
+
+
+
+
+		
+		ret
+ResizeWindow ENDP
 
  
 ProjectWndProc  PROC,   hWnd1:HWND, message:UINT, wParam:WPARAM, lParam:LPARAM
@@ -4216,12 +4428,98 @@ ProjectWndProc  PROC,   hWnd1:HWND, message:UINT, wParam:WPARAM, lParam:LPARAM
 		je        timing
 		cmp message, WM_ERASEBKGND
 		je		  returnnonzero
+		cmp message, WM_SOCKET
+		je handlesocket
 		cmp message,    WM_CLOSE
 		je        closing
 		cmp message, WM_CREATE
 		je create
+
 		jmp OtherInstances
            
+
+handlesocket:
+		mov eax,lParam
+        .if ax==FD_CONNECT            ; the low word of lParam contains the event code. 
+            shr eax,16                              ; the error code (if any) is in the high word of lParam 
+            .if ax==NULL 
+                ;<no error occurs so proceed> 
+            .else 
+					invoke ExitProcess, 1
+        .endif
+        .elseif    ax==FD_READ 
+            shr eax,16 
+            .if ax==NULL 
+				 invoke ioctlsocket, sock, FIONREAD, addr available_data 
+				 .if eax==NULL
+					invoke recvfrom, sock, offset buffer, 1024, 0,NULL,NULL
+
+					.if connected_to_peer == TRUE
+						mov enemygridoffset, offset buffer
+						ret
+					.endif
+
+					invoke crt_strcmp, offset buffer, offset wanttoconnectwithsomeone
+					cmp eax, 0
+					je sendyes
+					invoke crt_strcmp, offset buffer, offset get_ready_for_ip
+					cmp eax, 0
+					je getreadyforip
+
+
+					.if expecting_PORT == TRUE
+				     invoke crt_atoi, offset buffer
+					 mov clientport, eax
+					 mov expecting_PORT, FALSE
+
+					 
+					 mov clientsin.sin_family, AF_INET 
+					 invoke htons, clientport                    ; convert port number into network byte order first 
+					 mov clientsin.sin_port,ax                  ; note that this member is a word-size param. 
+			     	 invoke inet_addr, addr clientip    ; convert the IP address into network byte order 
+			 		 mov clientsin.sin_addr,eax 
+
+					 
+					 invoke CreateThread, NULL, NULL, offset sendgrid,offset clientsin, NULL, NULL
+					 mov connected_to_peer, TRUE
+					 invoke ResizeWindow
+					.endif
+
+
+					.if expecting_IP == TRUE
+					 invoke crt_strcpy, offset clientip, offset buffer
+					 mov textoffset, offset clientip
+					 mov expecting_PORT, TRUE
+					 mov expecting_IP, FALSE
+					.endif					
+					mov enemygridoffset, offset buffer
+				.endif
+                ;<no error occurs so proceed> 
+            .else 
+				invoke ExitProcess, 1
+            .endif 
+        .elseif   ax==FD_CLOSE 
+            shr eax,16 
+            .if ax==NULL 
+                ;<no error occurs so proceed> 
+            .else 
+				invoke ExitProcess, 1
+            .endif 
+        .endif 
+		ret
+
+
+		getreadyforip:
+		mov expecting_IP, TRUE
+		ret
+
+
+		sendyes:
+		invoke crt_strlen, offset yesiwanttoconnect
+		invoke sendto,sock, offset yesiwanttoconnect, eax, 0, offset sin, sizeof sin
+		mov expecting_IP, TRUE
+		ret
+			
 create:
 		invoke Create
 		ret
@@ -4288,10 +4586,13 @@ LOCAL msg:MSG
 		invoke ShowWindow, eax, SW_SHOW ;Show it
 
 
+		
+
+
+
 		invoke SetTimer, hWnd, TM_PAINT, PAINT_TIME, NULL ;Set the repaint timer
 		invoke SetTimer, hWnd, TM_UPDATE, INITIAL_UPDATE_TIMER , NULL
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
-
 
  
 msgLoop:
