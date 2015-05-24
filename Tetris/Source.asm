@@ -68,7 +68,7 @@ Todo list:
 		TM_GET_INPUT_FROM_KEYBOARD equ 1336
 		INITIAL_UPDATE_TIMER equ 750
 		INPUT_FROM_KEYBOARD_DELAY_IN_MENUS equ 20
-		INPUT_FROM_KEYBOARD_DELAY_IN_GAME equ 90
+		INPUT_FROM_KEYBOARD_DELAY_IN_GAME equ 80
 		INPUT_FROM_KEYBOARD_DELAY_IN_OPTIONS equ 20
 		PAINT_TIME equ 50
 		ENEMY_GRID_OFFSET equ 700
@@ -77,11 +77,11 @@ Todo list:
 
 
 		.data
+		leveltext db "Level: ",0
+		removemefromwaitinglist db "Remove me from waiting list.",0
 		youwinstate db FALSE
 		playingonline db FALSE
 		enemygridoffset DWORD ?
-		AnimateHWnd HWND ?
-		avipath db "filemove.avi",0
 		waiting_for_oponnent db FALSE
 		wsadata WSADATA <>
 		threadwhattodo DWORD 0
@@ -108,9 +108,7 @@ Todo list:
 		instructions4 db "Spacebar - instantly place block.",0
 		scoretext db "Score: ",0
 		hWnd HWND ?
-		BitmapsBodyGuard1 db 10000 dup(0)
-		randomColor db 1
-		timesDidntCheckUp DWORD 0
+		randomColor db FALSE
 		marginBetweenButtons DWORD ?
 		WindowWidth DWORD 400
 		RealWindowWidth DWORD 700
@@ -177,7 +175,6 @@ Todo list:
 
 
 
-		BitmapsBodyGuard2 db 10000 dup(0)
 		scoreFont HFONT ?
 		titleFont HFONT ?
 		scoreTitleFont HFONT ?
@@ -189,10 +186,10 @@ Todo list:
 		volume DWORD 00ff00ffh
 		CircleX DWORD 200
 		playGameOverMusic db "play GameOver.mp3", 0
-		playBackgroundMusic db "play tetrissound.wav",0
-		freezeBackgroundMusic db "pause tetrissound.wav",0
-		resumeBackgroundMusic db "resume tetrissound.wav", 0
-		restartBackgroundMusic db "seek tetrissound.wav to start", 0
+		playBackgroundMusic db "play tetrissound.mp3 repeat",0
+		freezeBackgroundMusic db "pause tetrissound.mp3",0
+		resumeBackgroundMusic db "resume tetrissound.mp3", 0
+		restartBackgroundMusic db "seek tetrissound.mp3 to start", 0
 		playclearline db "play clearline1.mp3",0
 		playWinMusic db "play win.mp3",0
 		playlevelup db "play levelup.wav",0
@@ -212,11 +209,10 @@ Todo list:
 		edxbackup DWORD ?
 		albackup db ?
 		anotherecxbackup DWORD ?
-		FullLine db ?
 		CurrentColor db 1
 		youlosestate db 0
 		backupecx DWORD ?
-		next2blocks db 1000 dup(0ffh)
+		beforegrid db 100 dup(0ffh)
 		grid DB 1024 dup(00FFh)
 		sidebargrid DB 1024 dup (00FFh)
 		enemygrid db 1024 dup(00ffh)
@@ -2754,9 +2750,10 @@ ClearSideBarGrid ENDP
 ChangeBlock PROC
 		invoke mciSendString, offset playblop, NULL, 0, NULL
 
-		invoke ClearSideBarGrid
+		invoke BuildSideBarBlock, 3,6,nextBlockType,0,0ffh	
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,CurrentColor
 		
+
 		push nextBlockType
 		xor eax, eax
 		mov al, nextBlockColor
@@ -2770,7 +2767,8 @@ ChangeBlock PROC
 		mov CurrentColor, al
 		pop BlockType
  
-		
+		invoke BuildSideBarBlock, 3,6,nextBlockType,0,nextBlockColor	
+
 		invoke TalDiv, WindowWidth, BLOCK_SIZE, 0
 		invoke TalDiv, eax, 2, 0
 		mov ebx, eax
@@ -2797,46 +2795,7 @@ endfunc:
 ChangeBlock ENDP
  
  
-GenerateRandomBlocksToArray PROC
-		mov ecx, 3
-		mov ebx, offset next2blocks
-generate:
-		pusha
-		invoke GetRandomNumber, 4, offset randombuffer
-		mov eax, randombuffer
-		xor edx, edx
-		mov bx, 7
-		div bx
-		mov nextBlockType, edx
-		cmp randomColor, 0
-		je skipgetrandomcolor
-		invoke GetRandomNumber, 4, offset randombuffer
-		mov eax, randombuffer
-		xor dx, dx
-		mov bx, 7
-		div bx
-		mov CurrentColor, dl
-		jmp skipskipgetrandomcolor
-skipgetrandomcolor:
-		mov eax, BlockType
-		mov CurrentColor, al
 
-skipskipgetrandomcolor:
-		popa
- 
-		mov eax, BlockType
-		mov [ebx], eax
-		add ebx, 4
-		mov al, CurrentColor
-		mov [ebx], al
-		inc ebx
-		loop generate
-		ret
- 
- 
-GenerateRandomBlocksToArray ENDP
- 
- 
 
  
  
@@ -3435,6 +3394,8 @@ NewGame PROC
 		mov highlighted, 0
 		mov PauseState ,0
  
+ 		invoke BuildSideBarBlock, 3,6,nextBlockType,0,nextBlockColor	
+
 		invoke GetRandomBlock
 		
 		ret
@@ -3841,6 +3802,8 @@ waitingforopponent:
 		jmp endoffunc
 
 		leavewaitingforopponent:
+		invoke crt_strlen, offset removemefromwaitinglist
+		invoke sendto,sock, offset removemefromwaitinglist, eax, 0, offset sin, sizeof sin
 		invoke closesocket, sock
 		invoke WSACleanup 
 		mov startscreen, 1
@@ -3930,20 +3893,7 @@ Create PROC
 		mov enemygridoffset, offset enemygrid
 		mov created, 1
 		mov startscreen, 1
-		mov ebx, offset next2blocks
-		mov ecx, 2
-createblocks:
-		pusha
-		invoke GetRandomBlock
-		popa
-		mov eax, BlockType
-		mov DWORD ptr [ebx], eax
-		add ebx, 4
-		mov al, CurrentColor
-		mov BYTE ptr [ebx], al
-		inc ebx
-		loop createblocks
- 
+
 		
 		invoke waveOutSetVolume, NULL, volume
 
@@ -3952,11 +3902,10 @@ createblocks:
 		invoke CreateFont, 80, 23, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, OUT_OUTLINE_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, FF_MODERN, offset TimesNewRoman
 		mov scoreFont, eax
  
-
 		invoke CreateFont, 35,15, 0,0, FW_BOLD, TRUE,TRUE,FALSE,ANSI_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,DEFAULT_PITCH OR FF_DONTCARE, NULL
 		mov titleFont, eax
 
-		invoke CreateFont, 75,25, 0,0, FW_BOLD, TRUE,TRUE,FALSE,ANSI_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,DEFAULT_PITCH OR FF_DONTCARE, NULL
+		invoke CreateFont, 55,25, 0,0, FW_BOLD, TRUE,TRUE,FALSE,ANSI_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,DEFAULT_PITCH OR FF_DONTCARE, NULL
 		mov scoreTitleFont, eax
 
 		invoke GetModuleHandle,NULL
@@ -4334,7 +4283,6 @@ drawgame:
 			invoke DrawEnemyGrid, hdcMem
 			invoke sendto,sock, offset grid, 1024, 0, offset clientsin, sizeof clientsin
 		.endif
-		invoke BuildSideBarBlock, 3,7,nextBlockType,0,nextBlockColor		
 		invoke DrawSideBarGrid, hdcMem, 400, 300
 		
 
@@ -4379,7 +4327,6 @@ blacktheme:
 			invoke sendto,sock, offset grid, 1024, 0, offset clientsin, sizeof clientsin
 		.endif
 		
-		invoke BuildSideBarBlock, 3,7,nextBlockType,0,nextBlockColor		
 		invoke DrawSideBarGrid, hdcMem, 400, 300
 
 
@@ -4409,8 +4356,8 @@ blacktheme:
 
 		invoke SetTextColor, hdcMem, 0ffffffh	
 
-		invoke DrawImage, hdcMem, HScoreBrickBackground, 407, 56+30
-		invoke DrawNumber, hdcMem, score, 450,67+30
+		invoke DrawImage, hdcMem, HScoreBrickBackground, 407, 56+5
+		invoke DrawNumber, hdcMem, score, 450,67+5
 
 
 		invoke DrawEmptyBlackBlocks, hdcMem
