@@ -2690,7 +2690,7 @@ returnfalse:
 		ret
 CheckIfCanGo ENDP
  
- 
+
 GetRandomBlock PROC
 		xor edx, edx
 		mov eax, WindowWidth
