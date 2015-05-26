@@ -56,6 +56,8 @@ Todo list:
  
  
 		.const
+		GRID_WIDTH equ 400
+		DEFAULT_WINDOW_WIDTH equ 700
 		SCORE_BONUS equ 500
 		BUTTONS_MARGIN equ 75
 		BLOCK_SIZE equ 40
@@ -77,6 +79,8 @@ Todo list:
 
 
 		.data
+		youlostonline db FALSE
+		lasttimeclickedescape DWORD 0
 		leveltext db "Level: ",0
 		removemefromwaitinglist db "Remove me from waiting list.",0
 		youwinstate db FALSE
@@ -86,7 +90,7 @@ Todo list:
 		wsadata WSADATA <>
 		threadwhattodo DWORD 0
 		clickedescapelasttime DWORD 0
-		clickedenterlasttime DWORD 0
+		clickedenterlasttime DWORD 1  ;Default value is 1 to prevent new game starting after opening game exe with enter key.
 		clickeddownlasttime DWORD 0
 		clickeduplasttime DWORD 0
 		clickedrightlasttime DWORD 0
@@ -106,6 +110,7 @@ Todo list:
 		instructions2 db "Up button   - rotate block.", 0
 		instructions3 db "Down button - move the block down faster.", 0 
 		instructions4 db "Spacebar - instantly place block.",0
+		instructions5 db "Double click escape to surrender",0
 		scoretext db "Score: ",0
 		hWnd HWND ?
 		randomColor db FALSE
@@ -225,7 +230,7 @@ Todo list:
 		sock DWORD ?
 		sin sockaddr_in <>
 		clientsin sockaddr_in <>
-		IPAddress db "149.78.95.151",0 
+		IPAddress db "149.78.95.151", 0
 		Port dd 5006                    
 		text db "placeholder",0
 		textoffset DWORD ?
@@ -233,6 +238,7 @@ Todo list:
 		wanttoconnectwithsomeone db "Want to connect with someone?",0
 		yesiwanttoconnect db "Yes, I do want to connect",0
 		get_ready_for_ip db "Get ready for IP.",0
+		removemefromlist db "Remove me from waiting list.",0
 		expecting_IP db FALSE
 		expecting_PORT db FALSE
 		available_data db 100 dup(0)        ; the amount of data available from the socket 
@@ -437,12 +443,6 @@ ReadEnemyGrid ENDP
  
  
  
- 
- 
- 
- 
- 
- 
 myOwnClearScreen PROC, hdc:HDC
 local brush:HBRUSH
  
@@ -519,6 +519,11 @@ Close PROC
 ;Release resources before closing
 		.if playingonline
 				invoke sendto,sock, offset ilostgrid, 4, 0, offset clientsin, sizeof clientsin
+				invoke closesocket, sock
+				invoke WSACleanup
+		.elseif waiting_for_opponent
+				invoke crt_strlen, offset removemefromlist
+				invoke sendto,sock, offset removemefromlist, eax, 0, offset sin, sizeof sin
 				invoke closesocket, sock
 				invoke WSACleanup
 		.endif
@@ -624,7 +629,6 @@ loop01:
 		imul ebx, BLOCK_SIZE
 		imul edx, BLOCK_SIZE
 		add ebx, ENEMY_GRID_OFFSET
-		;invoke BUILDRECT, ebx, edx, BLOCK_SIZE-1, BLOCK_SIZE-1, hdc, brush
 		invoke DrawImage, hdc, Hbmp, ebx, edx
 		jmp skipdraw
 skipdrawpopa:
@@ -666,7 +670,6 @@ loop01:
 		popa
 		imul ebx, BLOCK_SIZE
 		imul edx, BLOCK_SIZE
-		;invoke BUILDRECT, ebx, edx, BLOCK_SIZE-1, BLOCK_SIZE-1, hdc, brush
 		invoke DrawImage, hdc, Hbmp, ebx, edx
 		jmp skipdraw
 skipdrawpopa:
@@ -2769,6 +2772,8 @@ ChangeBlock PROC
  
 		invoke BuildSideBarBlock, 3,6,nextBlockType,0,nextBlockColor	
 
+
+		COMMENT @
 		invoke TalDiv, WindowWidth, BLOCK_SIZE, 0
 		invoke TalDiv, eax, 2, 0
 		mov ebx, eax
@@ -2776,16 +2781,33 @@ ChangeBlock PROC
 		invoke ReadGrid, ebx, edx
 		cmp al, 0ffh
 		je endfunc		
+		@
+		mov ebx, 0
+		mov edx, -1
+		mov ecx, GRID_WIDTH/BLOCK_SIZE
+		readlinebeforefirst:
+		pusha
+		invoke ReadGrid, ebx, edx
+		cmp al, 0ffh
+		jne youlost
+		popa
+		inc ebx
+		loop readlinebeforefirst
+		jmp endfunc
+
+		youlost:
+		popa
 		.if playingonline
 			mov playingonline, FALSE
 			invoke sendto,sock, offset ilostgrid, 4, 0, offset clientsin, sizeof clientsin
-			invoke ResizeWindow, 700,800
+			invoke ResizeWindow, DEFAULT_WINDOW_WIDTH,WindowHeight
 			invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
 			invoke closesocket, sock
 			invoke WSACleanup
-		.else
-			mov youlosestate, 1
-		.endif     
+			mov youlostonline, TRUE
+		.endif 
+		mov youlosestate, 1
+		invoke mciSendString, offset freezeBackgroundMusic, NULL, 0, NULL
 		invoke mciSendString, offset playGameOverMusic, NULL, 0, NULL
 endfunc:
 
@@ -2937,9 +2959,9 @@ DrawOptionsButtons ENDP
  
  
 DrawGameOverButtons PROC, hdc:HDC, highlightedbutton:BYTE
- 		.if playingonline
-			invoke DrawImage_WithMask, hdc, HBlackMainMenu, HBlackMainMenuMask, 275, 600
-			invoke DrawImage_WithMask, hdc, HHighLightBox, HHighLightMask, 275, 600
+ 		.if youlostonline
+			invoke DrawImage_WithMask, hdc, HHighLightBox, HHighLightMask, 230, 600
+			invoke DrawImage_WithMask, hdc, HBlackMainMenu, HBlackMainMenuMask, 230, 600
 			ret
 		.else
 			mov ebx, 50
@@ -3554,7 +3576,34 @@ skipmovingandputclicspacelasttime0:
 		mov clickedspacelasttime, 0
 skipmoving:
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,CurrentColor
-		ret
+		.if playingonline
+			invoke GetAsyncKeyState, VK_ESCAPE
+			cmp eax, 0
+			je skipcheckescape
+			invoke GetTickCount
+			sub eax, lasttimeclickedescape
+			push eax
+			invoke GetTickCount
+			mov lasttimeclickedescape, eax
+			pop eax
+			cmp eax, 1000
+			jg skipcheckescape
+
+			;SURRENDER
+				mov playingonline, FALSE
+				invoke sendto,sock, offset ilostgrid, 4, 0, offset clientsin, sizeof clientsin
+				invoke ResizeWindow, DEFAULT_WINDOW_WIDTH,WindowHeight
+				invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
+				invoke closesocket, sock
+				invoke WSACleanup
+				mov youlosestate, 1
+				mov youlostonline, TRUE
+				invoke mciSendString, offset freezeBackgroundMusic, NULL, 0, NULL
+				invoke mciSendString, offset playGameOverMusic, NULL, 0, NULL
+		.endif
+
+skipcheckescape:
+  		ret
 
 ;~~~~~~~~~~~ START OF STARTSCREEN PROCEDURE
 startscreenprocedure:
@@ -3641,7 +3690,7 @@ mainmenu:
 ;~~~~~~~~~~~~~~~~~~~~~~~~ START YOULOSE PROCEDURE
 
 youloseprocedure:
-		.if playingonline
+		.if youlostonline
 			invoke GetAsyncKeyState, VK_RETURN
 			shr eax, 15
 			cmp eax, 0
@@ -3651,6 +3700,7 @@ youloseprocedure:
 			mov startscreen, 1
 			mov playingonline, 0
 			mov youlosestate, 0
+			mov youlostonline, FALSE
 			mov connected_to_peer, FALSE
 			invoke closesocket, sock
 			invoke WSACleanup
@@ -3723,7 +3773,6 @@ pauseprocedure:
 pausescreenprocedureandnoclickescape:
 		mov clickedescapelasttime, 0
 pausescreenprocedure:
-		;invoke PlaySound, NULL, NULL, NULL       
 		invoke mciSendString, offset freezeBackgroundMusic, NULL, 0, NULL
 
 
@@ -3801,7 +3850,7 @@ waitingforopponent:
 		jne leavewaitingforopponent	
 		jmp endoffunc
 
-		leavewaitingforopponent:
+leavewaitingforopponent:
 		invoke crt_strlen, offset removemefromwaitinglist
 		invoke sendto,sock, offset removemefromwaitinglist, eax, 0, offset sin, sizeof sin
 		invoke closesocket, sock
@@ -4228,13 +4277,9 @@ about:
 youlosescreen:
  
 		invoke  BeginPaint,      hWnd,   addr paint
-		mov hdc, eax
- 
- 
+		mov hdc, eax 
                            
 		invoke DrawImage, hdc, HGameOver,0,0
-		;invoke PlaySound, NULL, NULL, NULL       
-		invoke mciSendString, offset freezeBackgroundMusic, NULL, 0, NULL
  
 		invoke DrawGameOverButtons, hdc, highlightedgameover
 		invoke EndPaint, hWnd, addr paint
@@ -4335,19 +4380,22 @@ blacktheme:
 
 
 		invoke crt_strlen, offset instructions1
-		invoke TextOut, hdcMem, 410, 670, offset instructions1, eax
+		invoke TextOut, hdcMem, 410, 660, offset instructions1, eax
 		invoke crt_strlen, offset instructions2
-		invoke TextOut, hdcMem, 410, 690, offset instructions2, eax
+		invoke TextOut, hdcMem, 410, 680, offset instructions2, eax
 		invoke crt_strlen, offset instructions3
-		invoke TextOut, hdcMem, 410, 710, offset instructions3, eax
+		invoke TextOut, hdcMem, 410, 700, offset instructions3, eax
 		invoke crt_strlen, offset instructions4
-		invoke TextOut, hdcMem, 410, 730, offset instructions4, eax
-		
+		invoke TextOut, hdcMem, 410, 720, offset instructions4, eax
+		.if playingonline
+			invoke crt_strlen, offset instructions5
+			invoke TextOut, hdcMem, 410, 740, offset instructions5, eax
+		.endif
 		
 
 		invoke SelectObject, hdcMem, titleFont
 		invoke crt_strlen, offset instructions0
-		invoke TextOut, hdcMem, 410, 630, offset instructions0, eax
+		invoke TextOut, hdcMem, 410, 620, offset instructions0, eax
 
 		invoke SelectObject, hdcMem, scoreTitleFont
 		invoke SetTextColor, hdcMem, 00a5efh ; ;ffa500
@@ -4417,8 +4465,9 @@ handlesocket:
 					jne continue
 
 					mov youwinstate, 1
+					invoke mciSendString, offset freezeBackgroundMusic, NULL, 0, NULL
 					invoke mciSendString, offset playWinMusic, NULL, NULL,NULL
-					invoke ResizeWindow, 700,800
+					invoke ResizeWindow, DEFAULT_WINDOW_WIDTH,WindowHeight
 					invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
 					ret
 
