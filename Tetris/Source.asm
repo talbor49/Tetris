@@ -1,55 +1,54 @@
  
  
  
-		.486                                                                    ; create 32 bit code
-		.model flat, stdcall                                    ; 32 bit memory model
+.486                                                                    ; create 32 bit code
+.model flat, stdcall                                    ; 32 bit memory model
 option casemap :none                                      ; case sensitive
-		;includes
+;includes
 
-		include \masm32\include\windows.inc
-		include \masm32\include\kernel32.inc
-		include \masm32\include\user32.inc
-		include \masm32\include\gdi32.inc
-		include \masm32\include\Advapi32.inc
-		;include \masm32\include\masm32rt.inc
-		include \masm32\include\winmm.inc
-		include \masm32\include\msvcrt.inc
-		includelib \masm32\lib\winmm.lib
-		include \masm32\include\msimg32.inc
-		includelib \masm32\lib\msimg32.lib
+include \masm32\include\windows.inc
+include \masm32\include\kernel32.inc
+include \masm32\include\user32.inc
+include \masm32\include\gdi32.inc
+include \masm32\include\Advapi32.inc
+include \masm32\include\winmm.inc
+include \masm32\include\msvcrt.inc
+includelib \masm32\lib\winmm.lib
+include \masm32\include\msimg32.inc
+includelib \masm32\lib\msimg32.lib
  
-		include \masm32\include\Ws2_32.inc
-		includelib \masm32\lib\Ws2_32.lib
-		include \masm32\include\dialogs.inc      ; macro file for dialogs
-		include \masm32\macros\macros.asm              ; masm32 macro file
-		includelib \masm32\lib\gdi32.lib
-		includelib \masm32\lib\user32.lib
-		includelib \masm32\lib\kernel32.lib
-		includelib \masm32\lib\Comctl32.lib
-		includelib \masm32\lib\comdlg32.lib
-		includelib \masm32\lib\shell32.lib
-		includelib \masm32\lib\oleaut32.lib
-		includelib \masm32\lib\ole32.lib
-		includelib \masm32\lib\msvcrt.lib
+include \masm32\include\Ws2_32.inc
+includelib \masm32\lib\Ws2_32.lib
+include \masm32\include\dialogs.inc      ; macro file for dialogs
+include \masm32\macros\macros.asm              ; masm32 macro file
+includelib \masm32\lib\gdi32.lib
+includelib \masm32\lib\user32.lib
+includelib \masm32\lib\kernel32.lib
+includelib \masm32\lib\Comctl32.lib
+includelib \masm32\lib\comdlg32.lib
+includelib \masm32\lib\shell32.lib
+includelib \masm32\lib\oleaut32.lib
+includelib \masm32\lib\ole32.lib
+includelib \masm32\lib\msvcrt.lib
  
  
 		COMMENT @
 		
 Todo list:
 		//1.Change window width and height
-		2.Make different game modes
+			2.Make different game modes
 		V 3.More sound effects
-		//4.Hurray on clear line
-		5.Add online fights
-		6.Add difficultys
+		V 4.Hurray on clear line
+		V 5.Add online fights
+			6.Add difficultys
 		V 7.Fix score
-		8.Add leaderboards
-		9.Make better design
+			8.Add leaderboards
+			9.Make better design
 		//10. Make fullscreen
-		11. Add an option to store a block for later
+			11. Add an option to store a block for later
 		12. Let you flip block even if you are near a wall
 		V 13. Fix resolution of blocks - maybe implement images instead of rectangles
-		14. Add multiplayer on same computer
+		V 14. Add multiplayer on same computer
 		V 15. Fix youlose
 		
 		@
@@ -72,7 +71,7 @@ Todo list:
 		INPUT_FROM_KEYBOARD_DELAY_IN_MENUS equ 20
 		INPUT_FROM_KEYBOARD_DELAY_IN_GAME equ 80
 		INPUT_FROM_KEYBOARD_DELAY_IN_OPTIONS equ 20
-		PAINT_TIME equ 50
+		PAINT_TIME equ 40
 		ENEMY_GRID_OFFSET equ 700
 		WM_SOCKET equ WM_USER+100
 		ACM_OPEN equ 0400h + 100
@@ -111,8 +110,9 @@ Todo list:
 		instructions3 db "Down button - move the block down faster.", 0 
 		instructions4 db "Spacebar - instantly place block.",0
 		instructions5 db "Double click escape to surrender",0
-		scoretext db "Score: ",0
+scoretext db "Score: ",0
 		hWnd HWND ?
+		icon db "tetris.ico", 0
 		randomColor db FALSE
 		marginBetweenButtons DWORD ?
 		WindowWidth DWORD 400
@@ -515,7 +515,7 @@ myOwnClearSideBarGrid ENDP
  
  
  
-Close PROC 
+Close PROC
 ;Release resources before closing
 		.if playingonline
 				invoke sendto,sock, offset ilostgrid, 4, 0, offset clientsin, sizeof clientsin
@@ -1880,7 +1880,7 @@ dontclearline:
 		cmp count, 0
 		je dontplayclearline
 		invoke mciSendString, offset playclearline, NULL,NULL,NULL
-		dontplayclearline:
+dontplayclearline:
 		ret
 ClearFullLines ENDP
  
@@ -2785,7 +2785,7 @@ ChangeBlock PROC
 		mov ebx, 0
 		mov edx, -1
 		mov ecx, GRID_WIDTH/BLOCK_SIZE
-		readlinebeforefirst:
+readlinebeforefirst:
 		pusha
 		invoke ReadGrid, ebx, edx
 		cmp al, 0ffh
@@ -2795,7 +2795,7 @@ ChangeBlock PROC
 		loop readlinebeforefirst
 		jmp endfunc
 
-		youlost:
+youlost:
 		popa
 		.if playingonline
 			mov playingonline, FALSE
@@ -3445,6 +3445,9 @@ MainMenu ENDP
 
  
 GetInputFromKeyboard PROC
+		invoke GetFocus
+		cmp eax, hWnd
+		jne endoffunc
 		cmp optionscreenstate, 1
 		je options
 		cmp startscreen, 1
@@ -3843,7 +3846,7 @@ youwinprocedure:
 
 waitingforopponent:
 
-		checkescape:
+checkescape:
 		invoke GetAsyncKeyState, VK_ESCAPE
 		shr eax, 15
 		cmp eax, 0
@@ -4260,14 +4263,14 @@ about:
 		invoke EndPaint, hWnd, addr paint
 		ret
  
- waitingforoponnent:
+waitingforoponnent:
 		invoke BeginPaint, hWnd, addr paint
 		mov hdc, eax
 		invoke DrawImage, hdc, HWaitingForOpponent, 0,0
 		invoke EndPaint, hWnd, addr paint
 		ret
  
- youwinprocedure:
+youwinprocedure:
 		invoke BeginPaint, hWnd, addr paint
 		mov hdc, eax
 		invoke DrawImage, hdc, HYouWin, 0,0
@@ -4471,7 +4474,7 @@ handlesocket:
 					invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
 					ret
 
-					continue:
+continue:
 					.if connected_to_peer
 						mov enemygridoffset, offset buffer
 						ret
@@ -4531,12 +4534,12 @@ handlesocket:
 		ret
 
 
-		getreadyforip:
+getreadyforip:
 		mov expecting_IP, TRUE
 		ret
 
 
-		sendyes:
+sendyes:
 		invoke crt_strlen, offset yesiwanttoconnect
 		invoke sendto,sock, offset yesiwanttoconnect, eax, 0, offset sin, sizeof sin
 		mov expecting_IP, TRUE
@@ -4597,6 +4600,9 @@ LOCAL msg:MSG
 		mov wndcls.hbrBackground, eax ;Set the background color as white
 		mov eax, ProjectWndProc
 		mov wndcls.lpfnWndProc, eax ;Set the procedure that handles the window messages
+		invoke GetModuleHandle, NULL
+		invoke LoadImage, eax, offset icon, IMAGE_ICON, 64,64, LR_LOADFROMFILE  
+		mov wndcls.hIcon, eax
 		invoke RegisterClassA, addr wndcls ;Register the class
 		invoke SetCursor, NULL
  		invoke CreateWindowExA, WS_EX_COMPOSITED, addr ClassName, addr windowTitle, WS_SYSMENU, 0, 0, RealWindowWidth, WindowHeight, 0, 0, 0, 0 ;Create the window

@@ -57,10 +57,12 @@ def prezendousServer():
             if len(clients_adresses) < 2:
                 print 'not enough clients connected yet. wait for another client to connect'
                 continue
+            clients_to_remove = set()
             for address in clients_adresses:
                 if address != client_address:
                     print 'asked %s if he wants to connect.' % str(address)
                     server_socket.sendto('Want to connect with someone?', address)
+                    clients_to_remove.add(address)    
             print 'waiting for a response from one of the other clients.'
             server_socket.settimeout(2)
             data = None  
@@ -79,9 +81,10 @@ def prezendousServer():
                     data, address = server_socket.recvfrom(1024)
                 except:
                     pass
-                #server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                #server_socket.bind(('0.0.0.0', 5006))       
-                #server_socket.settimeout(2)
+            for client in clients_to_remove:
+                if client != address and client != client_address:
+                    server_socket.sendto('I removed you', client)
+                    clients_adresses.remove(client)
             print 'I got: ', data
             server_socket.settimeout(None)
             print 'finished trying to recieve from sockets.'
