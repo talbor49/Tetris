@@ -243,8 +243,12 @@ scoretext db "Score: ",0
 		expecting_PORT db FALSE
 		available_data db 100 dup(0)        ; the amount of data available from the socket 
 
+		ipstring db "Enemy address: ("
 		clientip db 20 dup(0)
+		beforeportstring db ", "
+		portstring db 10 dup(0)
 		clientport dd 0
+		closeparantheses db ")",0
 		connected_to_peer db FALSE
 
 		startTime DWORD ?
@@ -2957,6 +2961,7 @@ drawblacktheme:
 		ret
 DrawOptionsButtons ENDP
  
+
  
 DrawGameOverButtons PROC, hdc:HDC, highlightedbutton:BYTE
  		.if youlostonline
@@ -3449,7 +3454,7 @@ GetInputFromKeyboard PROC
 		cmp eax, hWnd
 		jne endoffunc
 		cmp optionscreenstate, 1
-		je options
+        je options
 		cmp startscreen, 1
 		je startscreenprocedure		
 		cmp youlosestate, 1
@@ -3582,6 +3587,10 @@ skipmoving:
 		.if playingonline
 			invoke GetAsyncKeyState, VK_ESCAPE
 			cmp eax, 0
+			je skipcheckescapeandnoclickescape
+			mov eax, clickedescapelasttime
+			mov clickedescapelasttime, 1
+			cmp eax, 1
 			je skipcheckescape
 			invoke GetTickCount
 			sub eax, lasttimeclickedescape
@@ -3589,7 +3598,7 @@ skipmoving:
 			invoke GetTickCount
 			mov lasttimeclickedescape, eax
 			pop eax
-			cmp eax, 1000
+			cmp eax, 1250
 			jg skipcheckescape
 
 			;SURRENDER
@@ -3604,7 +3613,8 @@ skipmoving:
 				invoke mciSendString, offset freezeBackgroundMusic, NULL, 0, NULL
 				invoke mciSendString, offset playGameOverMusic, NULL, 0, NULL
 		.endif
-
+skipcheckescapeandnoclickescape:
+		mov clickedescapelasttime, 0
 skipcheckescape:
   		ret
 
@@ -4369,17 +4379,23 @@ drawgame:
  
 blacktheme:
 		invoke DrawImage, hdcMem, HBlackThemeBackground, 400, 0
+		invoke SetTextColor, hdcMem, 0ffffffh	
 		invoke DrawGrid, hdcMem
 		.if playingonline
 			invoke DrawEnemyGrid, hdcMem
 			invoke sendto,sock, offset grid, 1024, 0, offset clientsin, sizeof clientsin
+			invoke crt_strlen, offset ipstring
+			invoke TextOut, hdcMem, 400, 500,offset ipstring, eax
+			invoke itoa, clientport, offset portstring
+			add eax, 2  ;add for the ', ' in beforeportstring
+			invoke TextOut, hdcMem, 608, 500, offset beforeportstring, eax
+			invoke TextOut, hdcMem, 658, 500, offset closeparantheses, 1
 		.endif
 		
 		invoke DrawSideBarGrid, hdcMem, 400, 300
 
 
 
-		invoke SetTextColor, hdcMem, 0ffffffh	
 
 
 		invoke crt_strlen, offset instructions1

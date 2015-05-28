@@ -81,14 +81,14 @@ def prezendousServer():
                     data, address = server_socket.recvfrom(1024)
                 except:
                     pass
-            for client in clients_to_remove:
-                if client != address and client != client_address:
-                    server_socket.sendto('I removed you', client)
-                    clients_adresses.remove(client)
             print 'I got: ', data
             server_socket.settimeout(None)
             print 'finished trying to recieve from sockets.'
             if data == 'Yes, I do want to connect':
+                for client in clients_to_remove:
+                    if client != address and client != client_address:
+                        server_socket.sendto('I removed you', client)
+                        clients_adresses.remove(client)
                 server_socket.sendto('Get ready for IP.' + '\x00', client_address)
                 print 'one of the clients does want to connect with you.', address, 'he sent: ', data                
                 ishere.add(address)         
