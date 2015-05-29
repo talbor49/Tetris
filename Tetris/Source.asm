@@ -278,8 +278,10 @@ Todo list:
 		sock DWORD ?
 		sin sockaddr_in <>
 		clientsin sockaddr_in <>
-		IPAddress db "149.78.95.151", 0
-		Port dd 5006                    
+		;IPAddress db "149.78.95.151", 0
+		IPAddress db "10.144.199.195", 0
+		;Port dd 5006   
+		Port dd 80
 		text db "placeholder",0
 		textoffset DWORD ?
 		iremovedyou db "I removed you",0
@@ -3180,12 +3182,7 @@ DrawMainMenuButtons PROC, hdc:HDC, highlightedbutton:BYTE
 
  
 		invoke DrawImage_WithMask_WithResize, hdc, HExit, HExitMask, esi, edx, 240,60,0,0, 240,60
- 
- 
- 
- 
- 
-		ret
+ 		ret
 DrawMainMenuButtons ENDP
  
  
@@ -3225,9 +3222,7 @@ PlayOnline PROC
 		mov sin.sin_addr,eax 
 		invoke crt_strlen, offset getmeanopponent
 		invoke sendto,sock, offset getmeanopponent, eax, 0, offset sin, sizeof sin
-
-
-ret
+		ret
 PlayOnline ENDP
  
 DrawOptionsButtons PROC, hdc:HDC, highlightedbutton:BYTE, circlex:DWORD, selectedTheme:DWORD

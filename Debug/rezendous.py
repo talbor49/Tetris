@@ -61,10 +61,10 @@ def prezendousServer():
             for address in clients_adresses:
                 if address != client_address:
                     print 'asked %s if he wants to connect.' % str(address)
-                    server_socket.sendto('Want to connect with someone?', address)
+                    server_socket.sendto('Want to connect with someone?' + '\x00', address)
                     clients_to_remove.add(address)    
             print 'waiting for a response from one of the other clients.'
-            server_socket.settimeout(2)
+            server_socket.settimeout(0.5)
             data = None  
             timeouts = 0            
             try:
@@ -87,7 +87,7 @@ def prezendousServer():
             if data == 'Yes, I do want to connect':
                 for client in clients_to_remove:
                     if client != address and client != client_address:
-                        server_socket.sendto('I removed you', client)
+                        server_socket.sendto('I removed you' + '\x00', client)
                         clients_adresses.remove(client)
                 server_socket.sendto('Get ready for IP.' + '\x00', client_address)
                 print 'one of the clients does want to connect with you.', address, 'he sent: ', data                
