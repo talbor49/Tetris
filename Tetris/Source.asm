@@ -43,7 +43,7 @@ Todo list:
 			6.Add difficultys
 		V 7.Fix score
 			8.Add leaderboards
-			9.Make better design
+		V	9.Make better design
 		//10. Make fullscreen
 			11. Add an option to store a block for later
 		12. Let you flip block even if you are near a wall
@@ -75,13 +75,19 @@ Todo list:
 		ENEMY_GRID_OFFSET equ 700
 		WM_SOCKET equ WM_USER+100
 		ACM_OPEN equ 0400h + 100
-
-
+		NORMAL_BLOCKS equ 1337
+		WALL_BLOCKS equ 1338
+		ABCD_BLOCKS equ 1339
+		LEGO_BLOCKS equ 1340
+		MINECRAFT_BLOCKS equ 1341
 		.data
+		enemyscoreTitleFont DWORD ?
+		enemyscore DWORD 0
 		youlostonline db FALSE
 		lasttimeclickedescape DWORD 0
 		leveltext db "Level: ",0
 		removemefromwaitinglist db "Remove me from waiting list.",0
+		iclearedaline db "I cleared a line. please add a line to your grid.",0
 		youwinstate db FALSE
 		playingonline db FALSE
 		enemygridoffset DWORD ?
@@ -110,10 +116,12 @@ Todo list:
 		instructions3 db "Down button - move the block down faster.", 0 
 		instructions4 db "Spacebar - instantly place block.",0
 		instructions5 db "Double click escape to surrender",0
-scoretext db "Score: ",0
+		scoretext db "Score: ",0
+		enemyscoretext db "Enemy's Score: ",0
 		hWnd HWND ?
 		icon db "tetris.ico", 0
 		randomColor db FALSE
+		fontmem DWORD ?
 		marginBetweenButtons DWORD ?
 		WindowWidth DWORD 400
 		RealWindowWidth DWORD 700
@@ -176,14 +184,54 @@ scoretext db "Score: ",0
 		HBlock4 HBITMAP ?
 		HBlock5 HBITMAP ?
 		HBlock6 HBITMAP ?
+		HBlock7 HBITMAP ?
 		HBlock255 HBITMAP ?
+		
+		HWallBlock0 HBITMAP ?
+		HWallBlock1 HBITMAP ?
+		HWallBlock2 HBITMAP ?
+		HWallBlock3 HBITMAP ?
+		HWallBlock4 HBITMAP ?
+		HWallBlock5 HBITMAP ?
+		HWallBlock6 HBITMAP ?
+		HWallBlock7 HBITMAP ?
+		HWallBlock255 HBITMAP ?
 
+		HAbcdBlock0 HBITMAP ?
+		HAbcdBlock1 HBITMAP ?
+		HAbcdBlock2 HBITMAP ?
+		HAbcdBlock3 HBITMAP ?
+		HAbcdBlock4 HBITMAP ?
+		HAbcdBlock5 HBITMAP ?
+		HAbcdBlock6 HBITMAP ?
+		HAbcdBlock7 HBITMAP ?
+		HAbcdBlock255 HBITMAP ?
 
+		HLegoBlock0 HBITMAP ?
+		HLegoBlock1 HBITMAP ?
+		HLegoBlock2 HBITMAP ?
+		HLegoBlock3 HBITMAP ?
+		HLegoBlock4 HBITMAP ?
+		HLegoBlock5 HBITMAP ?
+		HLegoBlock6 HBITMAP ?
+		HLegoBlock7 HBITMAP ?
+		HLegoBlock255 HBITMAP ?
+		
+		HMineCraftBlock0 HBITMAP ?
+		HMineCraftBlock1 HBITMAP ?
+		HMineCraftBlock2 HBITMAP ?
+		HMineCraftBlock3 HBITMAP ?
+		HMineCraftBlock4 HBITMAP ?
+		HMineCraftBlock5 HBITMAP ?
+		HMineCraftBlock6 HBITMAP ?
+		HMineCraftBlock7 HBITMAP ?
+		HMineCraftBlock255 HBITMAP ?
 
 		scoreFont HFONT ?
 		titleFont HFONT ?
 		scoreTitleFont HFONT ?
 		theme DWORD BLACK_THEME
+		blocktheme DWORD MINECRAFT_BLOCKS
 		offsetinstring DWORD 0
 		created DWORD 0
 		score DWORD 0
@@ -234,6 +282,7 @@ scoretext db "Score: ",0
 		Port dd 5006                    
 		text db "placeholder",0
 		textoffset DWORD ?
+		iremovedyou db "I removed you",0
 		getmeanopponent db "Get me an opponent",0
 		wanttoconnectwithsomeone db "Want to connect with someone?",0
 		yesiwanttoconnect db "Yes, I do want to connect",0
@@ -265,6 +314,31 @@ local hprovide:HANDLE
 		ret
 GetRandomNumber ENDP
  
+strcmp PROC, lp_str1:DWORD, lp_str2:DWORD
+		mov esi, lp_str1
+		mov edi, lp_str2
+		invoke crt_strlen, lp_str1
+		mov ecx, eax
+		checkchar:
+
+		mov eax, [esi]
+		mov ebx, [edi]
+		cmp eax, ebx
+		jne returnfalse
+		inc esi
+		inc edi
+		loop checkchar
+
+		returntrue:
+		mov eax, 1
+		ret
+
+		returnfalse:
+		mov eax, 0
+		ret
+
+
+strcmp ENDP
 
 TalDiv PROC, divided:DWORD, divisor:DWORD, amountToAdd:DWORD
 		pusha
@@ -281,9 +355,9 @@ TalDiv ENDP
  
 
  
-GetColor PROC, index:BYTE
+GetBlockBmp PROC, index:BYTE
 		;Get color by index
-startgetcolor:
+		.if blocktheme == NORMAL_BLOCKS
 		cmp index, 0
 		je returnblock0
 		cmp index, 1
@@ -298,7 +372,83 @@ startgetcolor:
 		je returnblock5
 		cmp index, 6
 		je returnblock6
-		
+		cmp index, 7
+		je returnblock7
+		.elseif blocktheme == WALL_BLOCKS
+		cmp index, 0
+		je returnwallblock0
+		cmp index, 1
+		je returnwallblock1
+		cmp index, 2
+		je returnwallblock2
+		cmp index, 3
+		je returnwallblock3
+		cmp index, 4
+		je returnwallblock4
+		cmp index, 5
+		je returnwallblock5
+		cmp index, 6
+		je returnwallblock6
+		cmp index, 7
+		je returnwallblock7
+
+		.elseif blocktheme == ABCD_BLOCKS
+
+		cmp index, 0
+		je returnabcdblock0
+		cmp index, 1
+		je returnabcdblock1
+		cmp index, 2
+		je returnabcdblock2
+		cmp index, 3
+		je returnabcdblock3
+		cmp index, 4
+		je returnabcdblock4
+		cmp index, 5
+		je returnabcdblock5
+		cmp index, 6
+		je returnabcdblock6
+		cmp index, 7
+		je returnabcdblock7
+
+		.elseif blocktheme == LEGO_BLOCKS
+
+		cmp index, 0
+		je returnlegoblock0
+		cmp index, 1
+		je returnlegoblock1
+		cmp index, 2
+		je returnlegoblock2
+		cmp index, 3
+		je returnlegoblock3
+		cmp index, 4
+		je returnlegoblock4
+		cmp index, 5
+		je returnlegoblock5
+		cmp index, 6
+		je returnlegoblock6
+		cmp index, 7
+		je returnlegoblock7
+		.elseif blocktheme == MINECRAFT_BLOCKS
+		cmp index, 0
+		je returnminecraftblock0
+		cmp index, 1
+		je returnminecraftblock1
+		cmp index, 2
+		je returnminecraftblock2
+		cmp index, 3
+		je returnminecraftblock3
+		cmp index, 4
+		je returnminecraftblock4
+		cmp index, 5
+		je returnminecraftblock5
+		cmp index, 6
+		je returnminecraftblock6
+		cmp index, 7
+		je returnminecraftblock7
+
+		.endif
+		ret
 returnblock0:
 		mov eax, HBlock0
 		ret
@@ -320,7 +470,115 @@ returnblock5:
 returnblock6:
 		mov eax, HBlock6
 		ret
-GetColor ENDP
+returnblock7:
+		mov eax, HBlock7
+		ret
+
+
+
+returnwallblock0:
+		mov eax, HWallBlock0
+		ret
+returnwallblock1:
+		mov eax, HWallBlock1
+		ret
+returnwallblock2:
+		mov eax, HWallBlock2
+		ret
+returnwallblock3:
+		mov eax, HWallBlock3
+		ret
+returnwallblock4:
+		mov eax, HWallBlock4
+		ret
+returnwallblock5:
+		mov eax, HWallBlock5
+		ret
+returnwallblock6:
+		mov eax, HWallBlock6
+		ret
+returnwallblock7:
+		mov eax, HWallBlock7
+		ret
+
+
+returnabcdblock0:
+		mov eax, HAbcdBlock0
+		ret
+returnabcdblock1:
+		mov eax, HAbcdBlock1
+		ret
+returnabcdblock2:
+		mov eax, HAbcdBlock2
+		ret
+returnabcdblock3:
+		mov eax, HAbcdBlock3
+		ret
+returnabcdblock4:
+		mov eax, HAbcdBlock4
+		ret
+returnabcdblock5:
+		mov eax, HAbcdBlock5
+		ret
+returnabcdblock6:
+		mov eax, HAbcdBlock6
+		ret
+returnabcdblock7:
+		mov eax, HAbcdBlock7
+		ret
+
+returnlegoblock0:
+		mov eax, HLegoBlock0
+		ret
+returnlegoblock1:
+		mov eax, HLegoBlock1
+		ret
+returnlegoblock2:
+		mov eax, HLegoBlock2
+		ret
+returnlegoblock3:
+		mov eax, HLegoBlock3
+		ret
+returnlegoblock4:
+		mov eax, HLegoBlock4
+		ret
+returnlegoblock5:
+		mov eax, HLegoBlock5
+		ret
+returnlegoblock6:
+		mov eax, HLegoBlock6
+		ret
+returnlegoblock7:
+		mov eax, HLegoBlock7
+		ret
+
+returnminecraftblock0:
+		mov eax, HMineCraftBlock0
+		ret
+returnminecraftblock1:
+		mov eax, HMineCraftBlock1
+		ret
+returnminecraftblock2:
+		mov eax, HMineCraftBlock2
+		ret
+returnminecraftblock3:
+		mov eax, HMineCraftBlock3
+		ret
+returnminecraftblock4:
+		mov eax, HMineCraftBlock4
+		ret
+returnminecraftblock5:
+		mov eax, HMineCraftBlock5
+		ret
+returnminecraftblock6:
+		mov eax, HMineCraftBlock6
+		ret
+returnminecraftblock7:
+		mov eax, HMineCraftBlock7
+		ret
+
+
+GetBlockBmp ENDP
  
  
  
@@ -626,7 +884,7 @@ loop01:
 		invoke ReadEnemyGrid, ebx, edx
 		cmp al, 00FFh
 		je skipdrawpopa
-		invoke GetColor, al
+		invoke GetBlockBmp, al
 		mov Hbmp, eax
  
 		popa
@@ -668,7 +926,7 @@ loop01:
 		invoke ReadGrid, ebx, edx
 		cmp al, 00FFh
 		je skipdrawpopa
-		invoke GetColor, al
+		invoke GetBlockBmp, al
 		mov Hbmp, eax
  
 		popa
@@ -711,7 +969,7 @@ loop01:
 		invoke ReadSideBarGrid, ebx, edx
 		cmp al, 00FFh
 		je skipdraw
-		invoke GetColor, al
+		invoke GetBlockBmp, al
 		mov Hbmp, eax    
  
 		popa
@@ -719,7 +977,6 @@ loop01:
 		imul edx, BLOCK_SIZE
 		add ebx, x
 		invoke DrawImage, hdc, Hbmp, ebx, edx
-
                            
 skipdraw:
 		popa
@@ -749,12 +1006,6 @@ SetSideBarGrid ENDP
  
 SetGrid PROC, XIndex:DWORD, YIndex:DWORD, data:BYTE
 		;Puts data into grid[XIndex][YIndex]
-		cmp data, 7
-		jl skipnobreakpoint
-
-		mov al, data
-
-skipnobreakpoint:
 		mov ebx, offset grid
 		xor edx, edx
 		mov eax, WindowWidth
@@ -1818,6 +2069,47 @@ block63:
 		ret
 BuildSideBarBlock ENDP
  
+AddLine PROC
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, 0
+		mov ecx, eax
+		mov ebx, 0
+		mov edx, 0
+innerloop:
+		pusha
+		inc edx
+		invoke ReadGrid, ebx, edx
+		mov albackup, al
+		popa
+		mov al, albackup
+		pusha
+		invoke SetGrid, ebx, edx, al
+		popa		                       
+		inc ebx
+		loop innerloop
+nextline:
+		mov ebx, 0
+		inc edx
+		cmp edx, 18
+		je fillwithbullshit
+		pusha
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, 0
+		mov backupecx, eax
+		popa
+		mov ecx, backupecx
+		jmp innerloop
+fillwithbullshit:
+		invoke TalDiv, WindowWidth, BLOCK_SIZE, 0
+		mov ecx, eax
+		mov ebx, 0
+		fillbullshitloop:
+		pusha
+		invoke SetGrid, ebx, edx, 7
+		popa
+		inc ebx
+		loop fillbullshitloop
+dontplayclearline:
+		ret
+AddLine ENDP
  
 ClearFullLines PROC
 local count:DWORD
@@ -1842,7 +2134,9 @@ innerloop:
 		popa
 		mov al, albackup
 		cmp al, 0ffh
-		je dontclearline                         
+		je dontclearline       
+		cmp al, 7
+		je dontclearline                  
 		inc ebx
 		loop innerloop
 yesclearline:
@@ -1885,6 +2179,20 @@ dontclearline:
 		je dontplayclearline
 		invoke mciSendString, offset playclearline, NULL,NULL,NULL
 dontplayclearline:
+		.if playingonline
+			cmp count, 1
+			jle donothing
+			cmp count, 4
+			je add4lines
+			invoke sendto,sock, offset iclearedaline, sizeof iclearedaline, 0, offset clientsin, sizeof clientsin
+			ret
+			add4lines:
+			invoke sendto,sock, offset iclearedaline, sizeof iclearedaline, 0, offset clientsin, sizeof clientsin
+			invoke sendto,sock, offset iclearedaline, sizeof iclearedaline, 0, offset clientsin, sizeof clientsin
+			invoke sendto,sock, offset iclearedaline, sizeof iclearedaline, 0, offset clientsin, sizeof clientsin
+			invoke sendto,sock, offset iclearedaline, sizeof iclearedaline, 0, offset clientsin, sizeof clientsin
+		.endif 
+		donothing:
 		ret
 ClearFullLines ENDP
  
@@ -2716,7 +3024,7 @@ GetRandomBlock PROC
 		div bx
 		mov BlockType, edx
 		cmp randomColor, 0
-		je getcolorfromblock
+		je GetBlockBmpfromblock
 		invoke GetRandomNumber, 4, offset randombuffer
 		mov eax, randombuffer
 		xor dx, dx
@@ -2724,7 +3032,7 @@ GetRandomBlock PROC
 		div bx
 		mov CurrentColor, dl
 		ret
-getcolorfromblock:
+GetBlockBmpfromblock:
 
 		mov eax, BlockType
 		mov CurrentColor, al
@@ -2777,15 +3085,6 @@ ChangeBlock PROC
 		invoke BuildSideBarBlock, 3,6,nextBlockType,0,nextBlockColor	
 
 
-		COMMENT @
-		invoke TalDiv, WindowWidth, BLOCK_SIZE, 0
-		invoke TalDiv, eax, 2, 0
-		mov ebx, eax
-		mov edx, 0
-		invoke ReadGrid, ebx, edx
-		cmp al, 0ffh
-		je endfunc		
-		@
 		mov ebx, 0
 		mov edx, -1
 		mov ecx, GRID_WIDTH/BLOCK_SIZE
@@ -2806,8 +3105,8 @@ youlost:
 			invoke sendto,sock, offset ilostgrid, 4, 0, offset clientsin, sizeof clientsin
 			invoke ResizeWindow, DEFAULT_WINDOW_WIDTH,WindowHeight
 			invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
-			invoke closesocket, sock
-			invoke WSACleanup
+			;invoke closesocket, sock
+			;invoke WSACleanup
 			mov youlostonline, TRUE
 		.endif 
 		mov youlosestate, 1
@@ -2816,6 +3115,7 @@ youlost:
 endfunc:
 
 		invoke ClearFullLines
+
 
 		ret
 ChangeBlock ENDP
@@ -3090,7 +3390,17 @@ loop01:
 		popa
 		imul ebx, BLOCK_SIZE
 		imul edx, BLOCK_SIZE
+		.if blocktheme == NORMAL_BLOCKS
 		invoke DrawImage, hdc, HBlock255, ebx, edx
+		.elseif blocktheme == WALL_BLOCKS
+		invoke DrawImage, hdc, HWallBlock255, ebx, edx
+		.elseif blocktheme == ABCD_BLOCKS
+		invoke DrawImage, hdc, HAbcdBlock255, ebx, edx
+		.elseif blocktheme == LEGO_BLOCKS
+		invoke DrawImage, hdc, HLegoBlock255, ebx, edx
+		.elseif blocktheme == MINECRAFT_BLOCKS
+		invoke DrawImage, hdc, HMineCraftBlock255, ebx, edx
+		.endif
 		jmp skipdraw
 skipdrawpopa:
 		popa
@@ -3098,11 +3408,13 @@ skipdrawpopa:
 skipdraw:
 		popa
 		inc ebx
-		loop loop01
+		dec ecx
+		jnz loop01		 
 
 		mov ecx, backupecx
 		inc edx
-		loop loop00
+		dec ecx
+		jnz loop00
 		ret
 
 
@@ -3134,7 +3446,17 @@ loop01:
 		imul ebx, BLOCK_SIZE
 		imul edx, BLOCK_SIZE
 		add ebx, ENEMY_GRID_OFFSET
+		.if blocktheme == NORMAL_BLOCKS
 		invoke DrawImage, hdc, HBlock255, ebx, edx
+		.elseif blocktheme == WALL_BLOCKS
+		invoke DrawImage, hdc, HWallBlock255, ebx, edx
+		.elseif blocktheme == ABCD_BLOCKS
+		invoke DrawImage, hdc, HAbcdBlock255, ebx, edx
+		.elseif blocktheme == LEGO_BLOCKS
+		invoke DrawImage, hdc, HLegoBlock255, ebx, edx
+		.elseif blocktheme == MINECRAFT_BLOCKS
+		invoke DrawImage, hdc, HMineCraftBlock255, ebx, edx
+		.endif
 		jmp skipdraw
 skipdrawpopa:
 		popa
@@ -3142,11 +3464,13 @@ skipdrawpopa:
 skipdraw:
 		popa
 		inc ebx
-		loop loop01
+		dec ecx
+		jnz loop01
 
 		mov ecx, backupecx
 		inc edx
-		loop loop00
+		dec ecx
+		jnz loop00
 		ret
 
 
@@ -3450,9 +3774,6 @@ MainMenu ENDP
 
  
 GetInputFromKeyboard PROC
-		invoke GetFocus
-		cmp eax, hWnd
-		jne endoffunc
 		cmp optionscreenstate, 1
         je options
 		cmp startscreen, 1
@@ -3606,8 +3927,8 @@ skipmoving:
 				invoke sendto,sock, offset ilostgrid, 4, 0, offset clientsin, sizeof clientsin
 				invoke ResizeWindow, DEFAULT_WINDOW_WIDTH,WindowHeight
 				invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
-				invoke closesocket, sock
-				invoke WSACleanup
+				;invoke closesocket, sock
+				;invoke WSACleanup
 				mov youlosestate, 1
 				mov youlostonline, TRUE
 				invoke mciSendString, offset freezeBackgroundMusic, NULL, 0, NULL
@@ -3715,8 +4036,8 @@ youloseprocedure:
 			mov youlosestate, 0
 			mov youlostonline, FALSE
 			mov connected_to_peer, FALSE
-			invoke closesocket, sock
-			invoke WSACleanup
+			;invoke closesocket, sock
+			;invoke WSACleanup
 			jmp mainmenu
 		.else
 		invoke GetAsyncKeyState, VK_RIGHT
@@ -3849,8 +4170,8 @@ youwinprocedure:
 		mov startscreen, 1
 		mov playingonline, 0
 		mov connected_to_peer, FALSE
-		invoke closesocket, sock
-		invoke WSACleanup
+		;invoke closesocket, sock
+		;invoke WSACleanup
 		ret
 
 
@@ -3866,8 +4187,8 @@ checkescape:
 leavewaitingforopponent:
 		invoke crt_strlen, offset removemefromwaitinglist
 		invoke sendto,sock, offset removemefromwaitinglist, eax, 0, offset sin, sizeof sin
-		invoke closesocket, sock
-		invoke WSACleanup 
+		;invoke closesocket, sock
+		;invoke WSACleanup 
 		mov startscreen, 1
 		mov waiting_for_opponent, FALSE
 endoffunc:
@@ -3969,6 +4290,9 @@ Create PROC
 
 		invoke CreateFont, 55,25, 0,0, FW_BOLD, TRUE,TRUE,FALSE,ANSI_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,DEFAULT_PITCH OR FF_DONTCARE, NULL
 		mov scoreTitleFont, eax
+
+		invoke CreateFont, 35,12, 0,0, FW_BOLD, TRUE,TRUE,FALSE,ANSI_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,DEFAULT_PITCH OR FF_DONTCARE, NULL
+		mov enemyscoreTitleFont, eax
 
 		invoke GetModuleHandle,NULL
 		invoke LoadBitmap,eax,101
@@ -4149,6 +4473,10 @@ Create PROC
 		mov HBlock6,eax
 
 		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1350
+		mov HBlock7,eax
+
+		invoke GetModuleHandle,NULL
 		invoke LoadBitmap,eax,1336
 		mov HBlock255,eax
  
@@ -4178,6 +4506,154 @@ Create PROC
 		invoke GetModuleHandle,NULL
 		invoke LoadBitmap,eax,1349
 		mov HYouWin,eax
+
+
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1500
+		mov HWallBlock0,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1501
+		mov HWallBlock1,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1502
+		mov HWallBlock2,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1503
+		mov HWallBlock3,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1504
+		mov HWallBlock4,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1505
+		mov HWallBlock5,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1506
+		mov HWallBlock6,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1507
+		mov HWallBlock7,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1508
+		mov HWallBlock255,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1600
+		mov HAbcdBlock0,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1601
+		mov HAbcdBlock1,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1602
+		mov HAbcdBlock2,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1603
+		mov HAbcdBlock3,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1604
+		mov HAbcdBlock4,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1605
+		mov HAbcdBlock5,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1606
+		mov HAbcdBlock6,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1607
+		mov HAbcdBlock7,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1608
+		mov HAbcdBlock255,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1700
+		mov HLegoBlock0,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1701
+		mov HLegoBlock1,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1702
+		mov HLegoBlock2,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1703
+		mov HLegoBlock3,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1704
+		mov HLegoBlock4,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1705
+		mov HLegoBlock5,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1706
+		mov HLegoBlock6,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1707
+		mov HLegoBlock7,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1708
+		mov HLegoBlock255,eax
+
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1800
+		mov HMineCraftBlock0,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1801
+		mov HMineCraftBlock1,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1802
+		mov HMineCraftBlock2,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1803
+		mov HMineCraftBlock3,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1804
+		mov HMineCraftBlock4,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1805
+		mov HMineCraftBlock5,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1806
+		mov HMineCraftBlock6,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1807
+		mov HMineCraftBlock7,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1808
+		mov HMineCraftBlock255,eax
+
 
 		mov BlockMode, 0
 
@@ -4327,75 +4803,41 @@ drawgame:
  
 
                                                                                                                            
-		cmp theme, BLACK_THEME
-		je blacktheme
-;white theme
-		invoke myOwnClearScreen, hdcMem
-		invoke myOwnClearSideBarGrid, hdcMem
-		
-
-
-		invoke DrawImage, hdcMem, HWhiteThemeBackground, 400, 0
-		invoke DrawGrid, hdcMem
-		.if playingonline
-			invoke DrawEnemyGrid, hdcMem
-			invoke sendto,sock, offset grid, 1024, 0, offset clientsin, sizeof clientsin
-		.endif
-		invoke DrawSideBarGrid, hdcMem, 400, 300
-		
-
-
-		invoke SetTextColor, hdcMem, 0ffffffh	
-
-
-		invoke crt_strlen, offset instructions1
-		invoke TextOut, hdcMem, 410, 650, offset instructions1, eax
-		invoke crt_strlen, offset instructions2
-		invoke TextOut, hdcMem, 410, 670, offset instructions2, eax
-		invoke crt_strlen, offset instructions3
-		invoke TextOut, hdcMem, 410, 690, offset instructions3, eax
-		invoke crt_strlen, offset instructions4
-		invoke TextOut, hdcMem, 410, 710, offset instructions4, eax
-
-		
-
-		invoke SelectObject, hdcMem, titleFont
-		invoke crt_strlen, offset instructions0
-		invoke TextOut, hdcMem, 410, 600, offset instructions0, eax
-
-		invoke SelectObject, hdcMem, scoreTitleFont
-		invoke SetTextColor, hdcMem, 00a5efh ; ;ffa500
-		invoke crt_strlen, offset scoretext
-		invoke TextOut, hdcMem, 435, 0+20, offset scoretext, eax
-
-		invoke SetTextColor, hdcMem, 0ffffffh	
-
-		invoke DrawImage, hdcMem, HScoreBrickBackground, 407, 56+50
-		invoke DrawNumber, hdcMem, score, 450,67+50
-
-		
-		jmp afterthemes
-                                                                                                                           
- 
 blacktheme:
 		invoke DrawImage, hdcMem, HBlackThemeBackground, 400, 0
 		invoke SetTextColor, hdcMem, 0ffffffh	
 		invoke DrawGrid, hdcMem
 		.if playingonline
 			invoke DrawEnemyGrid, hdcMem
+			mov ebx, offset grid
+			add ebx, 1020
+			mov eax, score
+			mov DWORD ptr [ebx], eax
 			invoke sendto,sock, offset grid, 1024, 0, offset clientsin, sizeof clientsin
 			invoke crt_strlen, offset ipstring
-			invoke TextOut, hdcMem, 400, 500,offset ipstring, eax
+
+			invoke TextOut, hdcMem, 400, 600,offset ipstring, eax
 			invoke itoa, clientport, offset portstring
 			add eax, 2  ;add for the ', ' in beforeportstring
-			invoke TextOut, hdcMem, 608, 500, offset beforeportstring, eax
-			invoke TextOut, hdcMem, 658, 500, offset closeparantheses, 1
+			invoke TextOut, hdcMem, 608, 600, offset beforeportstring, eax
+			invoke TextOut, hdcMem, 658, 600, offset closeparantheses, 1
+
+
+			invoke SelectObject, hdcMem, enemyscoreTitleFont
+			mov fontmem, eax
+			invoke SetTextColor, hdcMem, 000FFFFh ;0ffcc66h; 66CCFF; 0ffh ;33CC33h  ; 0ff0000h;00a5efh ; ;ffa500
+			invoke crt_strlen, offset enemyscoretext
+			invoke TextOut, hdcMem, 435-30, 415, offset enemyscoretext, eax
+			invoke SetTextColor, hdcMem, 0ffffffh	
+			invoke DrawImage, hdcMem, HScoreBrickBackground, 407, 56+5+400
+			invoke DrawNumber, hdcMem, enemyscore, 450,67+5+400
+
 		.endif
 		
 		invoke DrawSideBarGrid, hdcMem, 400, 300
 
 
-
+		invoke SelectObject, hdcMem, fontmem
 
 
 		invoke crt_strlen, offset instructions1
@@ -4417,7 +4859,7 @@ blacktheme:
 		invoke TextOut, hdcMem, 410, 620, offset instructions0, eax
 
 		invoke SelectObject, hdcMem, scoreTitleFont
-		invoke SetTextColor, hdcMem, 00a5efh ; ;ffa500
+		invoke SetTextColor, hdcMem, 33CC33h  ; 0ff0000h;00a5efh ; ;ffa500
 		invoke crt_strlen, offset scoretext
 		invoke TextOut, hdcMem, 435, 0, offset scoretext, eax
 
@@ -4492,10 +4934,23 @@ handlesocket:
 
 continue:
 					.if connected_to_peer
+						invoke crt_strcmp, offset buffer, offset iclearedaline
+						cmp eax, 0
+						je addline
+						mov ebx, offset buffer
+						add ebx, 1020
+						mov eax, DWORD ptr [ebx]
+						mov enemyscore, eax
 						mov enemygridoffset, offset buffer
+						ret
+						addline:
+						invoke AddLine
 						ret
 					.endif
 
+					invoke crt_strcmp, offset buffer, offset iremovedyou
+					cmp eax, 0
+					je sendconnectmeagain
 					invoke crt_strcmp, offset buffer, offset wanttoconnectwithsomeone
 					cmp eax, 0
 					je sendyes
@@ -4520,7 +4975,7 @@ continue:
 					 mov playingonline, TRUE
 					 mov connected_to_peer, TRUE
 					 mov eax, RealWindowWidth
-					 add eax, 400
+					 add eax, 400+15
 					 invoke ResizeWindow, eax, WindowHeight
 					 invoke WSAAsyncSelect, sock, hWnd,WM_SOCKET, FD_READ
 					 ; Register interest in connect, read and close events. 
@@ -4560,7 +5015,10 @@ sendyes:
 		invoke sendto,sock, offset yesiwanttoconnect, eax, 0, offset sin, sizeof sin
 		mov expecting_IP, TRUE
 		ret
-			
+sendconnectmeagain:
+		invoke crt_strlen, offset getmeanopponent
+		invoke sendto,sock, offset getmeanopponent, eax, 0, offset sin, sizeof sin
+		ret			
 create:
 		invoke Create
 		ret
