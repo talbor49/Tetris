@@ -231,7 +231,7 @@ Todo list:
 		titleFont HFONT ?
 		scoreTitleFont HFONT ?
 		theme DWORD BLACK_THEME
-		blocktheme DWORD MINECRAFT_BLOCKS
+		blocktheme DWORD WALL_BLOCKS
 		offsetinstring DWORD 0
 		created DWORD 0
 		score DWORD 0
@@ -278,10 +278,8 @@ Todo list:
 		sock DWORD ?
 		sin sockaddr_in <>
 		clientsin sockaddr_in <>
-		;IPAddress db "149.78.95.151", 0
-		IPAddress db "10.144.199.195", 0
-		;Port dd 5006   
-		Port dd 80
+		IPAddress db "149.78.95.151", 0
+		Port dd 5006   
 		text db "placeholder",0
 		textoffset DWORD ?
 		iremovedyou db "I removed you",0
@@ -782,7 +780,6 @@ myOwnClearSideBarGrid ENDP
 Close PROC
 ;Release resources before closing
 		.if playingonline
-				invoke sendto,sock, offset ilostgrid, 4, 0, offset clientsin, sizeof clientsin
 				invoke closesocket, sock
 				invoke WSACleanup
 		.elseif waiting_for_opponent
@@ -2072,6 +2069,7 @@ block63:
 BuildSideBarBlock ENDP
  
 AddLine PROC
+		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,0ffh
 		invoke TalDiv, WindowWidth, BLOCK_SIZE, 0
 		mov ecx, eax
 		mov ebx, 0
@@ -2110,6 +2108,7 @@ fillwithbullshit:
 		inc ebx
 		loop fillbullshitloop
 dontplayclearline:
+		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,CurrentColor
 		ret
 AddLine ENDP
  
@@ -3902,6 +3901,7 @@ skipmoving:
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,CurrentColor
 		.if playingonline
 			invoke GetAsyncKeyState, VK_ESCAPE
+			shr eax, 15
 			cmp eax, 0
 			je skipcheckescapeandnoclickescape
 			mov eax, clickedescapelasttime
