@@ -231,7 +231,7 @@ Todo list:
 		titleFont HFONT ?
 		scoreTitleFont HFONT ?
 		theme DWORD BLACK_THEME
-		blocktheme DWORD WALL_BLOCKS
+		blocktheme DWORD NORMAL_BLOCKS
 		offsetinstring DWORD 0
 		created DWORD 0
 		score DWORD 0
