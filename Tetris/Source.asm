@@ -75,12 +75,16 @@ Todo list:
 		ENEMY_GRID_OFFSET equ 700
 		WM_SOCKET equ WM_USER+100
 		ACM_OPEN equ 0400h + 100
-		NORMAL_BLOCKS equ 1337
-		WALL_BLOCKS equ 1338
-		ABCD_BLOCKS equ 1339
-		LEGO_BLOCKS equ 1340
-		MINECRAFT_BLOCKS equ 1341
+		NORMAL_BLOCKS equ 0
+		WALL_BLOCKS equ 1
+		ABCD_BLOCKS equ 2
+		LEGO_BLOCKS equ 3
+		MINECRAFT_BLOCKS equ 4
+
+
 		.data
+		leftwasclickedlasttime dd 0
+		rightwasclickedlasttime dd 0
 		enemyscoreTitleFont DWORD ?
 		enemyscore DWORD 0
 		youlostonline db FALSE
@@ -162,8 +166,6 @@ Todo list:
 		HVolumeBarMask HBITMAP ?
 		HCircle HBITMAP ?
 		HCircleMask HBITMAP ?
-		HBlackTheme HBITMAP ?
-		HWhiteTheme HBITMAP ?
 		HBlueRect HBITMAP ?
 		HBlueRectMask HBITMAP ?
 		HChangeVolume HBITMAP ?
@@ -226,6 +228,12 @@ Todo list:
 		HMineCraftBlock6 HBITMAP ?
 		HMineCraftBlock7 HBITMAP ?
 		HMineCraftBlock255 HBITMAP ?
+		
+		HNormalBlocks HBITMAP ?
+		HAbcdBlocks HBITMAP ?
+		HBrickBlocks HBITMAP ?
+		HMineCraftBlocks HBITMAP ?
+		HLegoBlocks HBITMAP ?
 
 		scoreFont HFONT ?
 		titleFont HFONT ?
@@ -304,6 +312,7 @@ Todo list:
 		clickedspacelasttime DWORD 0
  
 		waiting_for_opponent db FALSE
+
 		.code
  
 GetRandomNumber PROC,   blen:BYTE,PointToBuffer:PLONG
@@ -313,32 +322,6 @@ local hprovide:HANDLE
 		invoke CryptReleaseContext,hprovide,0
 		ret
 GetRandomNumber ENDP
- 
-strcmp PROC, lp_str1:DWORD, lp_str2:DWORD
-		mov esi, lp_str1
-		mov edi, lp_str2
-		invoke crt_strlen, lp_str1
-		mov ecx, eax
-		checkchar:
-
-		mov eax, [esi]
-		mov ebx, [edi]
-		cmp eax, ebx
-		jne returnfalse
-		inc esi
-		inc edi
-		loop checkchar
-
-		returntrue:
-		mov eax, 1
-		ret
-
-		returnfalse:
-		mov eax, 0
-		ret
-
-
-strcmp ENDP
 
 TalDiv PROC, divided:DWORD, divisor:DWORD, amountToAdd:DWORD
 		pusha
@@ -352,8 +335,6 @@ TalDiv PROC, divided:DWORD, divisor:DWORD, amountToAdd:DWORD
 		mov eax, eaxbackup
 		ret
 TalDiv ENDP
- 
-
  
 GetBlockBmp PROC, index:BYTE
 		;Get color by index
@@ -578,10 +559,7 @@ returnminecraftblock7:
 		ret
 
 
-GetBlockBmp ENDP
- 
- 
- 
+GetBlockBmp ENDP 
  
 BUILDRECT          PROC,   x:DWORD,             y:DWORD, h:DWORD,          w:DWORD,             hdc:HDC,                brush:HBRUSH
 		;Draw a rectangle
@@ -598,11 +576,7 @@ LOCAL rectangle:RECT
  
 		invoke FillRect, hdc, addr rectangle, brush
 		ret
-BUILDRECT ENDP
- 
- 
- 
- 
+BUILDRECT ENDP 
  
 DrawImage PROC, hdc:HDC, img:HBITMAP, x:DWORD, y:DWORD
 local hdcMem:HDC
@@ -650,6 +624,7 @@ local HOld:HDC
 		ret
 DrawImage_WithMask ENDP
  
+
 DrawImage_WithMask_WithResize PROC, hdc:HDC, img:HBITMAP, maskedimg:HBITMAP,  x:DWORD, y:DWORD,w:DWORD,h:DWORD,x2:DWORD,y2:DWORD,wstrech:DWORD,hstrech:DWORD
 		;--------------------------------------------------------------------------------
 local hdcMem:HDC
@@ -668,7 +643,7 @@ local HOld:HDC
 		ret
 DrawImage_WithMask_WithResize ENDP
  
-ReadGrid PROC, XIndex:DWORD, YIndex:DWORD
+ ReadGrid PROC, XIndex:DWORD, YIndex:DWORD
 		;Returns grid[XIndex][YIndex]
 		mov ebx, offset grid
  
@@ -683,8 +658,7 @@ ReadGrid PROC, XIndex:DWORD, YIndex:DWORD
 		xor eax, eax
 		mov al, BYTE ptr [ebx]
 		ret
-ReadGrid ENDP
- 
+ReadGrid ENDP 
  
 ReadEnemyGrid PROC, XIndex:DWORD, YIndex:DWORD
 	;Returns grid[XIndex][YIndex]
@@ -701,9 +675,7 @@ ReadEnemyGrid PROC, XIndex:DWORD, YIndex:DWORD
 	xor eax, eax
 	mov al, BYTE ptr [ebx]
 	ret
-ReadEnemyGrid ENDP
- 
- 
+ReadEnemyGrid ENDP 
  
 myOwnClearScreen PROC, hdc:HDC
 local brush:HBRUSH
@@ -744,8 +716,7 @@ skipdraw:
 		inc edx
 		loop loop00
 		ret
-myOwnClearScreen ENDP
- 
+myOwnClearScreen ENDP 
  
 ReadSideBarGrid PROC, XIndex:DWORD, YIndex:DWORD
 		;Returns grid[XIndex][YIndex]
@@ -760,11 +731,6 @@ ReadSideBarGrid PROC, XIndex:DWORD, YIndex:DWORD
 		ret
 ReadSideBarGrid ENDP
  
- 
- 
- 
- 
- 
 myOwnClearSideBarGrid PROC, hdc:HDC
 local brush:HBRUSH
  		invoke GetStockObject, WHITE_BRUSH
@@ -772,10 +738,7 @@ local brush:HBRUSH
 		invoke SelectObject, hdc, brush
 		invoke BUILDRECT, 400, 0, WindowHeight, 300, hdc, brush  ;Draw a rectangle the size of the side bar.
 		ret
-myOwnClearSideBarGrid ENDP
- 
- 
- 
+myOwnClearSideBarGrid ENDP 
  
 Close PROC
 ;Release resources before closing
@@ -821,8 +784,6 @@ Close PROC
 		invoke DeleteObject, HVolumeBarMask
 		invoke DeleteObject, HCircle
 		invoke DeleteObject, HCircleMask
-		invoke DeleteObject, HBlackTheme
-		invoke DeleteObject, HWhiteTheme
 		invoke DeleteObject, HBlueRect
 		invoke DeleteObject, HBlueRectMask
 		invoke DeleteObject, HChangeVolume
@@ -846,6 +807,7 @@ Close PROC
 		ret
 Close ENDP
  
+
 ResizeWindow PROC, newwidth:DWORD, newheight:DWORD
 		invoke DestroyWindow, hWnd
 		mov eax, newwidth
@@ -944,8 +906,7 @@ skipdraw:
 		inc edx
 		loop loop00
 		ret
-DrawGrid ENDP
- 
+DrawGrid ENDP 
  
 DrawSideBarGrid PROC, hdc:HDC, x:DWORD, w:DWORD
 local Hbmp:HDC
@@ -985,9 +946,7 @@ skipdraw:
 		inc edx
 		loop loop00
 		ret
-DrawSideBarGrid ENDP
- 
- 
+DrawSideBarGrid ENDP 
  
 SetSideBarGrid PROC, XIndex:DWORD, YIndex:DWORD, data:BYTE
 		;Puts data into sidebargrid[XIndex][YIndex]
@@ -1000,8 +959,7 @@ SetSideBarGrid PROC, XIndex:DWORD, YIndex:DWORD, data:BYTE
 		mov al, data
 		mov BYTE ptr [ebx], al
 		ret
-SetSideBarGrid ENDP
- 
+SetSideBarGrid ENDP 
  
 SetGrid PROC, XIndex:DWORD, YIndex:DWORD, data:BYTE
 		;Puts data into grid[XIndex][YIndex]
@@ -1018,10 +976,7 @@ SetGrid PROC, XIndex:DWORD, YIndex:DWORD, data:BYTE
 		mov al, data
 		mov BYTE ptr [ebx], al
 		ret
-SetGrid ENDP
- 
- 
- 
+SetGrid ENDP 
  
 Get_Handle_To_Mask_Bitmap          PROC,   hbmColour:HBITMAP,     crTransparent:COLORREF
 		;--------------------------------------------------------------------------------
@@ -1056,10 +1011,7 @@ local bm:BITMAP
  
 		;================================================================================
 		ret
-Get_Handle_To_Mask_Bitmap ENDP
- 
- 
- 
+Get_Handle_To_Mask_Bitmap ENDP 
  
 BuildBlock         PROC,   x:DWORD,             y:DWORD, blocktype:DWORD,       blockmode:DWORD, color:BYTE; blockmode ->   0 - down, 1- right, 2-up, 3 - left
 		;Puts the block into the grid
@@ -3004,8 +2956,7 @@ returnfalse:
 		ret
  
 		ret
-CheckIfCanGo ENDP
- 
+CheckIfCanGo ENDP 
 
 GetRandomBlock PROC
 		xor edx, edx
@@ -3066,7 +3017,7 @@ ClearSideBarGrid ENDP
 ChangeBlock PROC
 		invoke mciSendString, offset playblop, NULL, 0, NULL
 
-		invoke BuildSideBarBlock, 3,6,nextBlockType,0,0ffh	
+		invoke BuildSideBarBlock, 3,7,nextBlockType,0,0ffh	
 		invoke BuildBlock, BlockX,BlockY,BlockType,BlockMode,CurrentColor
 		
 
@@ -3083,7 +3034,7 @@ ChangeBlock PROC
 		mov CurrentColor, al
 		pop BlockType
  
-		invoke BuildSideBarBlock, 3,6,nextBlockType,0,nextBlockColor	
+		invoke BuildSideBarBlock, 3,7,nextBlockType,0,nextBlockColor	
 
 
 		mov ebx, 0
@@ -3124,8 +3075,7 @@ ChangeBlock ENDP
  
 
 
- 
- 
+  
  
 DrawMainMenuButtons PROC, hdc:HDC, highlightedbutton:BYTE
  
@@ -3243,19 +3193,23 @@ DrawOptionsButtons PROC, hdc:HDC, highlightedbutton:BYTE, circlex:DWORD, selecte
 		invoke DrawImage_WithMask, hdc, HChangeTheme, HChangeThemeMask, 50, 505
  
  
-		cmp selectedTheme, BLACK_THEME
-		je drawblacktheme
-		invoke DrawImage, hdc, HWhiteTheme,75, 580
-		ret
-drawblacktheme:
-		invoke DrawImage, hdc,  HBlackTheme,75, 580
+		.if blocktheme == NORMAL_BLOCKS
+		invoke DrawImage, hdc, HNormalBlocks, 75, 580
+		.elseif blocktheme == WALL_BLOCKS
+		invoke DrawImage, hdc, HBrickBlocks, 75, 580
+		.elseif blocktheme == ABCD_BLOCKS
+		invoke DrawImage, hdc, HAbcdBlocks, 75, 580
+		.elseif blocktheme == LEGO_BLOCKS
+		invoke DrawImage, hdc, HLegoBlocks, 75, 580
+		.elseif blocktheme == MINECRAFT_BLOCKS
+		invoke DrawImage, hdc, HMineCraftBlocks, 75, 580
+		.endif
  
  
  
 		ret
 DrawOptionsButtons ENDP
  
-
  
 DrawGameOverButtons PROC, hdc:HDC, highlightedbutton:BYTE
  		.if youlostonline
@@ -3275,14 +3229,7 @@ DrawGameOverButtons PROC, hdc:HDC, highlightedbutton:BYTE
 			invoke DrawImage_WithMask, hdc, HBlackMainMenu, HBlackMainMenuMask, 50+240+100, 600
 		.endif
 		ret
-DrawGameOverButtons ENDP
- 
- 
- 
- 
- 
- 
- 
+DrawGameOverButtons ENDP 
  
 DrawPauseButtons PROC, hdc:HDC, highlightedbutton:BYTE
  
@@ -3327,12 +3274,7 @@ DrawPauseButtons PROC, hdc:HDC, highlightedbutton:BYTE
  
 		ret
 DrawPauseButtons ENDP
- 
- 
- 
- 
- 
- 
+  
  
 ClearGrid PROC
  
@@ -3355,11 +3297,16 @@ innerloop:
 		ret
 ClearGrid ENDP
 
-
-
-
-
-
+ClearBeforeGrid PROC
+ 
+		mov ebx, offset beforegrid
+		mov ecx, 100
+		initByte:
+		mov byte ptr [ebx], 0ffh
+		inc ebx
+		loop initByte
+		ret
+ClearBeforeGrid ENDP
  
 DrawEmptyBlackBlocks PROC, hdc:HDC
 
@@ -3415,7 +3362,6 @@ skipdraw:
 		ret
 DrawEmptyBlackBlocks ENDP
 
-
 DrawEmptyBlackBlocksEnemy PROC, hdc:HDC
 
 		;Draws all the blocks on the grid
@@ -3470,10 +3416,6 @@ skipdraw:
 
 		ret
 DrawEmptyBlackBlocksEnemy ENDP
- 
-
-
-
 
 DrawGridLines PROC, hdc:HDC
 local pen:HPEN
@@ -3506,9 +3448,7 @@ verticallines:
 		add ebx, BLOCK_SIZE
 		loop verticallines
 		ret
-DrawGridLines ENDP
- 
- 
+DrawGridLines ENDP 
  
 itoa PROC, num:DWORD, string:DWORD
 local count:DWORD
@@ -3541,8 +3481,7 @@ putnuminstring:
 		mov eax, count
 		ret
 itoa ENDP
- 
- 
+  
  
 DrawNumber PROC, hdc:HDC, num:DWORD, x:DWORD, y:DWORD
 		invoke itoa, num, offset scorestring
@@ -3553,8 +3492,7 @@ DrawNumber PROC, hdc:HDC, num:DWORD, x:DWORD, y:DWORD
  
  
 		ret
-DrawNumber ENDP
- 
+DrawNumber ENDP 
  
 About PROC
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL		
@@ -3602,7 +3540,6 @@ endabout:
 
 About ENDP
 
-
 Options PROC
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_OPTIONS, NULL
 
@@ -3639,18 +3576,39 @@ dooperation:
 		;theme change operation	
 		invoke GetAsyncKeyState, VK_RIGHT
 		cmp eax, 0
-		jne changetheme
+		je checkleftandnclickright
+		mov eax, rightwasclickedlasttime
+		mov rightwasclickedlasttime, 1
+		cmp eax, 1
+		je checkleft
+		cmp blocktheme, 4
+		je resetblocktheme
+		inc blocktheme
+		jmp endoperations
+		resetblocktheme:
+		mov blocktheme, 0
+		jmp endoperations
+
+		checkleftandnclickright:
+
+		mov rightwasclickedlasttime, 0
+		checkleft:
 		invoke GetAsyncKeyState, VK_LEFT
 		cmp eax, 0
-		jne changetheme
-		mov changedthemelasttime, 0
+		jne changeblocktheme
+		mov leftwasclickedlasttime, 0
 		jmp endoperations
-changetheme:
-		mov eax, changedthemelasttime
-		mov changedthemelasttime, 1
+		changeblocktheme:
+		mov eax, leftwasclickedlasttime
+		mov leftwasclickedlasttime, 1
 		cmp eax, 1
 		je endoperations
-		xor theme, 1
+		cmp blocktheme, 0
+		je overflowblocktheme
+		dec blocktheme
+		jmp endoperations
+		overflowblocktheme:
+		mov blocktheme, 4		
 		jmp endoperations
  
  
@@ -3705,7 +3663,6 @@ endcheck:
 
 Options ENDP
 
-
 NewGame PROC
 
 		mov eax, CircleX
@@ -3720,6 +3677,7 @@ NewGame PROC
 
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_GAME, NULL
 
+		invoke ClearBeforeGrid
 		invoke ClearGrid
 		invoke ClearSideBarGrid
 		invoke mciSendString, offset restartBackgroundMusic, NULL, 0, NULL
@@ -3739,7 +3697,7 @@ NewGame PROC
 		mov highlighted, 0
 		mov PauseState ,0
  
- 		invoke BuildSideBarBlock, 3,6,nextBlockType,0,nextBlockColor	
+ 		invoke BuildSideBarBlock, 3,7,nextBlockType,0,nextBlockColor	
 
 		invoke GetRandomBlock
 		
@@ -3751,7 +3709,6 @@ skipgetrandomcolor:
 
 		ret
 NewGame ENDP
-
 
 MainMenu PROC
 		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
@@ -3765,7 +3722,6 @@ MainMenu PROC
 		mov PauseState, 0
 		ret
 MainMenu ENDP
-
  
 GetInputFromKeyboard PROC
 		cmp optionscreenstate, 1
@@ -4190,8 +4146,6 @@ endoffunc:
 		ret
 GetInputFromKeyboard ENDP
 
-
-
 Update PROC
 		cmp CurrentColor, 7
 		jl skipbreakpoint
@@ -4265,6 +4219,7 @@ endupdate:
  
 Update ENDP
  
+
 Create PROC
 		cmp created, 1
 		je endcreate
@@ -4409,14 +4364,7 @@ Create PROC
  
 		invoke Get_Handle_To_Mask_Bitmap, HCircle, 00ffffffh
 		mov HCircleMask, eax
- 
-		invoke GetModuleHandle,NULL
-		invoke LoadBitmap,eax,123
-		mov HWhiteTheme,eax
- 
-		invoke GetModuleHandle,NULL
-		invoke LoadBitmap,eax,124
-		mov HBlackTheme,eax
+
  
 		invoke GetModuleHandle,NULL
 		invoke LoadBitmap,eax,125
@@ -4649,6 +4597,26 @@ Create PROC
 		invoke LoadBitmap,eax,1808
 		mov HMineCraftBlock255,eax
 
+				invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1900
+		mov HNormalBlocks,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1901
+		mov HAbcdBlocks,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1902
+		mov HBrickBlocks,eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1903
+		mov HLegoBlocks, eax
+
+		invoke GetModuleHandle,NULL
+		invoke LoadBitmap,eax,1904
+		mov HMineCraftBlocks,eax
+
 
 		mov BlockMode, 0
 
@@ -4677,8 +4645,7 @@ skipgetrandomcolor:
 endcreate:
  
 		ret
-Create ENDP
- 
+Create ENDP 
  
 Paint PROC
 local paint:PAINTSTRUCT
@@ -4881,10 +4848,6 @@ afterthemes:
  
 Paint ENDP
  
- 
-
-
- 
 ProjectWndProc  PROC,   hWnd1:HWND, message:UINT, wParam:WPARAM, lParam:LPARAM
 		mov eax, hWnd1
 		mov hWnd, eax
@@ -5055,8 +5018,6 @@ OtherInstances:
  
 ProjectWndProc  ENDP
  
- 
- 
 main PROC
  
 LOCAL wndcls:WNDCLASSA ; Class struct for the window
@@ -5100,6 +5061,4 @@ msgLoop:
 		invoke ExitProcess, 1
 		ret
 main ENDP
- 
- 
-		end main
+end main

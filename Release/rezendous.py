@@ -94,11 +94,8 @@ def prezendousServer():
                 ishere.add(address)         
                 print 'got answer from ', str(address) + '\nconnecting him with requester. created holes in NAT.'
                 server_socket.sendto(str(address[0]) + '\x00', client_address)
-                time.sleep(0.05)
                 server_socket.sendto(str(address[1]) + '\x00', client_address) 
-                time.sleep(0.05)
                 server_socket.sendto(str(client_address[0]) + '\x00', address)
-                time.sleep(0.05)
                 server_socket.sendto(str(client_address[1]) + '\x00', address)                
                 print '\n\n client adress:', str(client_address[0]) ,',', str(client_address[1]) , ' address: ',str(address[0]) ,',', str(address[1]) ,'\n\n'
                 clients_adresses.discard(client_address)
