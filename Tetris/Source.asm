@@ -35,22 +35,22 @@ includelib \masm32\lib\msvcrt.lib
 		COMMENT @
 		
 Todo list:
-		//1.Change window width and height
-			2.Make different game modes
+		V1.Change window width and height
+		V2.Make different game modes
 		V 3.More sound effects
 		V 4.Hurray on clear line
 		V 5.Add online fights
-			6.Add difficultys
+		6.Add difficultys
 		V 7.Fix score
-			8.Add leaderboards
-		V	9.Make better design
+		8.Add leaderboards
+		V9.Make better design
 		//10. Make fullscreen
-			11. Add an option to store a block for later
-		12. Let you flip block even if you are near a wall
+		11. Add an option to store a block for later
+		//12. Let you flip block even if you are near a wall
 		V 13. Fix resolution of blocks - maybe implement images instead of rectangles
 		V 14. Add multiplayer on same computer
 		V 15. Fix youlose
-		
+				
 		@
  
  
@@ -677,47 +677,6 @@ ReadEnemyGrid PROC, XIndex:DWORD, YIndex:DWORD
 	ret
 ReadEnemyGrid ENDP 
  
-myOwnClearScreen PROC, hdc:HDC
-local brush:HBRUSH
- 
- 
-		invoke GetStockObject, WHITE_BRUSH
-		mov brush, eax
-		invoke SelectObject, hdc, brush
-		mov ebx, 0
-		mov edx, 0
-		invoke TalDiv, WindowHeight, BLOCK_SIZE, 0
-		mov ecx, eax
-loop00:
-		mov backupecx, ecx
- 
-		invoke TalDiv, WindowWidth, BLOCK_SIZE, 0
-		mov ecx, eax
- 
-		mov ebx, 0
-loop01:
-		pusha                            
-		pusha
-		invoke ReadGrid, ebx, edx
-		cmp al, 0ffh
-		jne skipdraw
-		popa                                             
-		imul ebx, BLOCK_SIZE
-		imul edx, BLOCK_SIZE
- 
-		invoke BUILDRECT, ebx, edx, BLOCK_SIZE-1, BLOCK_SIZE-1, hdc, brush
-                                                                           
-                           
-skipdraw:
-		popa
-		inc ebx
-		loop loop01
-		mov ecx, backupecx
-		inc edx
-		loop loop00
-		ret
-myOwnClearScreen ENDP 
- 
 ReadSideBarGrid PROC, XIndex:DWORD, YIndex:DWORD
 		;Returns grid[XIndex][YIndex]
 		mov ebx, offset sidebargrid
@@ -817,11 +776,7 @@ ResizeWindow PROC, newwidth:DWORD, newheight:DWORD
 		invoke ShowWindow, eax, SW_SHOW ;Show it
 
 		invoke SetTimer, hWnd, TM_PAINT, PAINT_TIME, NULL ;Set the repaint timer
-		invoke SetTimer, hWnd, TM_UPDATE, INITIAL_UPDATE_TIMER , NULL
-		
-		
-
-		
+		invoke SetTimer, hWnd, TM_UPDATE, INITIAL_UPDATE_TIMER , NULL		
 		ret
 ResizeWindow ENDP
 
@@ -978,8 +933,9 @@ SetGrid PROC, XIndex:DWORD, YIndex:DWORD, data:BYTE
 		ret
 SetGrid ENDP 
  
-Get_Handle_To_Mask_Bitmap          PROC,   hbmColour:HBITMAP,     crTransparent:COLORREF
+Get_Handle_To_Mask_Bitmap PROC, hbmColour:HBITMAP, crTransparent:COLORREF
 		;--------------------------------------------------------------------------------
+		;Credits go to Daniel Eliad
 local hdcMem:HDC
 local hdcMem2:HDC
 local hbmMask:HBITMAP
@@ -1013,7 +969,7 @@ local bm:BITMAP
 		ret
 Get_Handle_To_Mask_Bitmap ENDP 
  
-BuildBlock         PROC,   x:DWORD,             y:DWORD, blocktype:DWORD,       blockmode:DWORD, color:BYTE; blockmode ->   0 - down, 1- right, 2-up, 3 - left
+BuildBlock PROC, x:DWORD, y:DWORD, blocktype:DWORD, blockmode:DWORD, color:BYTE; blockmode ->   0 - down, 1- right, 2-up, 3 - left
 		;Puts the block into the grid
 		cmp blocktype, 0
 		je block0
@@ -1491,7 +1447,7 @@ block63:
 BuildBlock ENDP
  
  
-BuildSideBarBlock          PROC,   x:DWORD,             y:DWORD, blocktype:DWORD,       blockmode:DWORD, color:BYTE; blockmode ->   0 - down, 1- right, 2-up, 3 - left
+BuildSideBarBlock PROC, x:DWORD, y:DWORD, blocktype:DWORD, blockmode:DWORD, color:BYTE; blockmode ->   0 - down, 1- right, 2-up, 3 - left
 		;Puts the block into the grid
 		cmp blocktype, 0
 		je block0
@@ -5003,14 +4959,13 @@ getinputfromkeyboard:
 		invoke GetInputFromKeyboard
 dontgetinputfromkeyboard:
 		ret
- 
- 
+  
 timing:
 		cmp wParam, TM_UPDATE
 		je update
 		cmp wParam, TM_GET_INPUT_FROM_KEYBOARD
 		je getinputfromkeyboard
-		invoke InvalidateRect, hWnd, NULL, FALSE
+		invoke InvalidateRect, hWnd, NULL, TRUE
 		ret
 OtherInstances:
 		invoke DefWindowProc, hWnd, message, wParam, lParam
@@ -5038,24 +4993,13 @@ LOCAL msg:MSG
  		invoke CreateWindowExA, WS_EX_COMPOSITED, addr ClassName, addr windowTitle, WS_SYSMENU, 0, 0, RealWindowWidth, WindowHeight, 0, 0, 0, 0 ;Create the window
 		mov hWnd, eax ;Save the handle
 		invoke ShowWindow, eax, SW_SHOW ;Show it
-
-
-		
-
-
-
 		invoke SetTimer, hWnd, TM_PAINT, PAINT_TIME, NULL ;Set the repaint timer
 		invoke SetTimer, hWnd, TM_UPDATE, INITIAL_UPDATE_TIMER , NULL
-		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL
-
- 
-msgLoop:
- 
+		invoke SetTimer, hWnd, TM_GET_INPUT_FROM_KEYBOARD, INPUT_FROM_KEYBOARD_DELAY_IN_MENUS, NULL 
+msgLoop: 
 		; PeekMessage
-		invoke GetMessage, addr msg, hWnd, 0, 0 ;Retrieve the messages from the window
- 
-		invoke DispatchMessage, addr msg ;Dispatches a message to the window procedure
- 
+		invoke GetMessage, addr msg, hWnd, 0, 0 ;Retrieve the messages from the window 
+		invoke DispatchMessage, addr msg ;Dispatches a message to the window procedure 
 		jmp msgLoop
  
 		invoke ExitProcess, 1
